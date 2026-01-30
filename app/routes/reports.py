@@ -115,23 +115,23 @@ def income_statement():
     period = request.args.get('period', 'current_month')
     start_date, end_date = get_period_dates(period)
 
-    # Build two-level trees for Revenue and Expense roots
-    revenue_roots = get_roots_for_type('Revenue')
+    # Build two-level trees for Income and Expense roots
+    income_roots = get_roots_for_type('Income')
     expense_roots = get_roots_for_type('Expense')
 
-    revenue_accounts = build_two_level_tree(revenue_roots, start_date, end_date)
+    income_accounts = build_two_level_tree(income_roots, start_date, end_date)
     expense_accounts = build_two_level_tree(expense_roots, start_date, end_date)
 
-    # Totals: revenues are typically credit (use absolute value), expenses are debit
-    total_revenue = sum(abs(item['balance']) for item in revenue_accounts)
+    # Totals: income are typically credit (use absolute value), expenses are debit
+    total_income = sum(abs(item['balance']) for item in income_accounts)
     total_expenses = sum(item['balance'] for item in expense_accounts)
 
-    net_income = total_revenue - total_expenses
+    net_income = total_income - total_expenses
 
     return render_template('reports/income_statement.html',
-                         revenue_accounts=revenue_accounts,
+                         income_accounts=income_accounts,
                          expense_accounts=expense_accounts,
-                         total_revenue=total_revenue,
+                         total_income=total_income,
                          total_expenses=total_expenses,
                          net_income=net_income,
                          start_date=start_date,
@@ -141,18 +141,18 @@ def income_statement():
 
 def get_net_income(start_date=None, end_date=None):
     """Calculate net income for a period"""
-    revenues = Account.query.filter_by(account_type='Revenue').all()
+    incomes = Account.query.filter_by(account_type='Income').all()
     expenses = Account.query.filter_by(account_type='Expense').all()
     
-    total_revenue = 0
-    for acc in revenues:
-        total_revenue += abs(acc.get_balance(start_date, end_date))
+    total_income = 0
+    for acc in incomes:
+        total_income += abs(acc.get_balance(start_date, end_date))
     
     total_expenses = 0
     for acc in expenses:
         total_expenses += acc.get_balance(start_date, end_date)
     
-    return total_revenue - total_expenses
+    return total_income - total_expenses
 
 @bp.route('/trial-balance')
 def trial_balance():

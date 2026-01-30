@@ -38,11 +38,15 @@ def list_transactions():
             q = q.join(TransactionLine).filter(TransactionLine.account_id == account_id)
             needs_line_join = True
 
-    # If a date range is present, filter by JournalEntry.entry_date (previous behavior)
-    if start_date:
-        q = q.filter(JournalEntry.entry_date >= start_date)
-    if end_date:
-        q = q.filter(JournalEntry.entry_date <= end_date)
+    # If a date range is present, filter by TransactionLine.date (not JournalEntry.entry_date)
+    if start_date or end_date:
+        if not needs_line_join:
+            q = q.join(TransactionLine)
+            needs_line_join = True
+        if start_date:
+            q = q.filter(TransactionLine.date >= start_date)
+        if end_date:
+            q = q.filter(TransactionLine.date <= end_date)
 
     q = q.order_by(JournalEntry.entry_date.desc())
     if needs_line_join:

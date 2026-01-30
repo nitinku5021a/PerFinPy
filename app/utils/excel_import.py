@@ -21,6 +21,15 @@ def parse_account_path(path_str, account_type):
     # Ensure we have max 3 levels (1 parent + 1 child + 1 leaf or 1 parent + 1 leaf)
     if len(parts) > 3:
         raise ValueError(f"Account path exceeds max 2 levels: {path_str}")
+
+    # If the first segment is exactly an AccountType name (e.g., "Expense", "Asset"),
+    # drop it from the parts so we don't create a top-level account named after the type.
+    type_names = [t.value.lower() for t in AccountType]
+    if parts and parts[0].strip().lower() in type_names:
+        parts = parts[1:]
+
+    if not parts:
+        raise ValueError(f"Account path must contain an account name after the type: {path_str}")
     
     parent_account = None
     current_account = None
@@ -29,9 +38,9 @@ def parse_account_path(path_str, account_type):
         if not name:
             raise ValueError(f"Empty account name in path: {path_str}")
         
-        # Top level - try to find by name (ignore account_type to reuse existing accounts)
+        # Top level - try to find by name and account_type
         if i == 0:
-            current_account = Account.query.filter_by(name=name, parent_id=None).first()
+            current_account = Account.query.filter_by(name=name, parent_id=None, account_type=account_type).first()
             if not current_account:
                 from uuid import uuid4
                 current_account = Account(
@@ -44,8 +53,8 @@ def parse_account_path(path_str, account_type):
                 db.session.flush()
             parent_account = current_account
         else:
-            # Child of parent - attempt to find by name under parent (ignore account_type)
-            current_account = Account.query.filter_by(name=name, parent_id=parent_account.id).first()
+            # Child of parent - attempt to find by name under parent with same account_type
+            current_account = Account.query.filter_by(name=name, parent_id=parent_account.id, account_type=account_type).first()
             if not current_account:
                 from uuid import uuid4
                 current_account = Account(
@@ -69,7 +78,7 @@ def generate_account_code(account_type, level, parent_code=None):
         'Asset': '1',
         'Liability': '2',
         'Equity': '3',
-        'Revenue': '4',
+        'Income': '4',
         'Expense': '5'
     }
     
@@ -98,7 +107,7 @@ def detect_account_type(path_str, default='Asset'):
     if any(k in top for k in ['equity', 'capital', 'owner']):
         return 'Equity'
     if any(k in top for k in ['revenue', 'income', 'sales']):
-        return 'Revenue'
+        return 'Income'
     if any(k in top for k in ['expense', 'expenses', 'cost']):
         return 'Expense'
     return default
@@ -176,9 +185,26 @@ def import_transactions_from_excel(file_stream):
     }
     
     try:
+        # Clean up legacy top-level accounts that are named exactly as AccountType (e.g., 'Asset', 'Expense')
+        # but have no children and no transaction lines. These often result from older buggy imports.
+        type_names = [t.value for t in AccountType]
+        removed = []
+        for tname in type_names:
+            acc = Account.query.filter_by(name=tname, parent_id=None).first()
+            if acc:
+                # Only remove if it's truly orphaned (no children and no transaction lines pointing to it)
+                if not acc.children:
+                    tl_count = TransactionLine.query.filter_by(account_id=acc.id).count()
+                    if tl_count == 0:
+                        db.session.delete(acc)
+                        removed.append(tname)
+        if removed:
+            db.session.commit()
+            results['warnings'].append(f"Removed legacy top-level accounts: {', '.join(removed)}")
+
         workbook = load_workbook(file_stream, data_only=True)
         worksheet = workbook.active
-        
+
         rows_processed = 0
         for row_idx, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
             # Skip empty rows

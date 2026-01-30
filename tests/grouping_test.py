@@ -41,7 +41,7 @@ with app.app_context():
     db.session.commit()
     # attach grandchild to child_icici as real grandchild
     grand_icici.parent_id = child_icici.id
-    revenue = Account(code='c4', name='Salary', account_type='Revenue')
+    revenue = Account(code='c4', name='Salary', account_type='Income')
     db.session.add_all([grand_icici, revenue])
     db.session.commit()
 

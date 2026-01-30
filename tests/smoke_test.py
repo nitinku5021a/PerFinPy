@@ -28,8 +28,8 @@ with app.app_context():
     # First ensure we have a revenue account
     resp3 = client.post('/transactions/accounts/new', data={
         'name': 'Sales',
-        'account_type': 'Revenue',
-        'description': 'Sales revenue'
+        'account_type': 'Income',
+        'description': 'Sales income'
     }, follow_redirects=True)
     print('Create revenue account status:', resp3.status_code)
 

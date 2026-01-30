@@ -7,7 +7,7 @@ class AccountType(Enum):
     ASSET = 'Asset'
     LIABILITY = 'Liability'
     EQUITY = 'Equity'
-    REVENUE = 'Revenue'
+    INCOME = 'Income'
     EXPENSE = 'Expense'
 
 class Account(db.Model):
@@ -17,7 +17,7 @@ class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), unique=False, nullable=True)  # optional account code (deprecated)
     name = db.Column(db.String(100), nullable=False)
-    account_type = db.Column(db.String(20), nullable=False)  # Asset, Liability, Equity, Revenue, Expense
+    account_type = db.Column(db.String(20), nullable=False)  # Asset, Liability, Equity, Income, Expense
     description = db.Column(db.Text)
     parent_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=True)  # Parent account for grouping
     is_active = db.Column(db.Boolean, default=True)

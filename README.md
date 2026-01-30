@@ -5,11 +5,11 @@ A simple yet comprehensive personal finance accounting system built with Flask, 
 ## Features
 
 - **Double-Entry Bookkeeping**: Every transaction is recorded as both a debit and credit to maintain the accounting equation
-- **Chart of Accounts**: Organize accounts by type (Asset, Liability, Equity, Revenue, Expense)
+- **Chart of Accounts**: Organize accounts by type (Asset, Liability, Equity, Income, Expense)
 - **Journal Entries**: Record financial transactions with automatic balance validation
 - **Financial Reports**:
   - Balance Sheet: Shows assets, liabilities, and equity at a point in time
-  - Income Statement: Shows revenues and expenses for a period
+  - Income Statement: Shows income and expenses for a period
   - Trial Balance: Verifies that debits equal credits across all accounts
 - **Period Filtering**: View reports for different time periods (Year-to-Date, Current Month, Custom Dates)
 - **Account Management**: Create and manage your chart of accounts
@@ -113,7 +113,7 @@ gunicorn wsgi:app --bind 0.0.0.0:8000 --workers 3
 3. Fill in:
    - Account Code (e.g., 1000, 2000, 3000)
    - Account Name
-   - Account Type (Asset, Liability, Equity, Revenue, Expense)
+   - Account Type (Asset, Liability, Equity, Income, Expense)
    - Description (optional)
 
 ### Recording Transactions
@@ -137,7 +137,7 @@ gunicorn wsgi:app --bind 0.0.0.0:8000 --workers 3
 
 #### Income Statement
 - Shows your profitability over a period
-- Equation: Net Income = Revenues - Expenses
+- Equation: Net Income = Income - Expenses
 
 #### Trial Balance
 - Verifies the integrity of your records
@@ -147,8 +147,8 @@ gunicorn wsgi:app --bind 0.0.0.0:8000 --workers 3
 
 ### Double-Entry Bookkeeping
 Every transaction affects at least two accounts:
-- **Debit**: Increases assets/expenses, decreases liabilities/revenues
-- **Credit**: Increases liabilities/revenues, decreases assets/expenses
+- **Debit**: Increases assets/expenses, decreases liabilities/income
+- **Credit**: Increases liabilities/income, decreases assets/expenses
 
 ### Account Types
 
@@ -161,7 +161,7 @@ Every transaction affects at least two accounts:
 **Equity**: Owner's stake in the business
 - Examples: Capital, Retained Earnings
 
-**Revenues**: Money earned by the business
+**Income**: Money earned by the business
 - Examples: Sales, Service Income
 
 **Expenses**: Costs incurred by the business

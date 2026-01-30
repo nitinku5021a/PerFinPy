@@ -23,7 +23,7 @@ def test_transactions_filters():
         db.session.add(parent)
         db.session.commit()
         a1 = Account(code='a1', name='Cash', account_type='Asset', parent_id=parent.id)
-        a2 = Account(code='a2', name='Salary', account_type='Revenue')
+        a2 = Account(code='a2', name='Salary', account_type='Income')
         db.session.add_all([a1, a2])
         db.session.commit()
 

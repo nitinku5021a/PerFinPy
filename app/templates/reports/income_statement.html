@@ -23,11 +23,11 @@
 
 <div class="report-content">
     <div class="report-section">
-        <h2>REVENUES</h2>
+        <h2>INCOME</h2>
         <table class="report-table">
             <tbody>
-                {% for item in revenue_accounts %}
-                <!-- Parent revenue group -->
+                {% for item in income_accounts %}
+                <!-- Parent income group -->
                 <tr style="background-color: #f5f5f5; font-weight: bold;">
                     <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
                     <td class="amount">{{ item.balance|abs|inr }}</td>
@@ -46,8 +46,8 @@
                 {% endfor %}
                 {% endfor %}
                 <tr class="section-total">
-                    <td class="label">Total Revenues</td>
-                    <td class="amount">{{ total_revenue|inr }}</td>
+                    <td class="label">Total Income</td>
+                    <td class="amount">{{ total_income|inr }}</td>
                 </tr> 
             </tbody>
         </table>

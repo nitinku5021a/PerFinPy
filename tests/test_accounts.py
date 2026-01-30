@@ -34,7 +34,7 @@ def test_account_creation_validation():
         # 2) parent type mismatch should return an error
         resp2 = client.post('/transactions/accounts/new', data={
             'name': 'Mismatch',
-            'account_type': 'Revenue',
+            'account_type': 'Income',
             'parent_id': str(parent.id)
         })
         assert resp2.status_code == 200
