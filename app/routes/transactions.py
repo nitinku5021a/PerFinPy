@@ -8,10 +8,54 @@ bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
 @bp.route('/')
 def list_transactions():
-    """List all journal entries"""
+    """List journal entries with optional filters: period (all, ytd, current_month) and account_id (group or leaf account).
+    Default view is current month entries."""
     page = request.args.get('page', 1, type=int)
-    entries = JournalEntry.query.order_by(JournalEntry.entry_date.desc()).paginate(page=page, per_page=20)
-    return render_template('transactions/list.html', entries=entries)
+    # Default to current_month so the list shows recent entries by default
+    period = request.args.get('period', 'current_month')
+    account_id = request.args.get('account_id', type=int)
+
+    # Reuse period parsing from reports
+    try:
+        from app.routes.reports import get_period_dates
+        start_date, end_date = get_period_dates(period)
+    except Exception:
+        start_date, end_date = (None, None)
+
+    q = JournalEntry.query
+
+    # If filtering by account or period, prefer filtering by TransactionLine.date
+    # so the behavior matches the drill-down reports (which are transaction-line date based).
+    needs_line_join = False
+
+    if account_id:
+        account = Account.query.get(account_id)
+        if account:
+            descendant_ids = [a.id for a in account.get_all_descendants()] + [account.id]
+            q = q.join(TransactionLine).filter(TransactionLine.account_id.in_(descendant_ids))
+            needs_line_join = True
+        else:
+            q = q.join(TransactionLine).filter(TransactionLine.account_id == account_id)
+            needs_line_join = True
+
+    # If a date range is present, filter by JournalEntry.entry_date (previous behavior)
+    if start_date:
+        q = q.filter(JournalEntry.entry_date >= start_date)
+    if end_date:
+        q = q.filter(JournalEntry.entry_date <= end_date)
+
+    q = q.order_by(JournalEntry.entry_date.desc())
+    if needs_line_join:
+        # distinct to avoid duplicates when joining
+        q = q.distinct()
+
+    entries = q.paginate(page=page, per_page=20)
+
+    # Provide accounts list for the account-based filter (allow group or leaf selection)
+    all_accounts = Account.query.order_by(Account.name).all()
+    accounts_for_select = all_accounts
+
+    return render_template('transactions/list.html', entries=entries, period=period, account_id=account_id, accounts_for_select=accounts_for_select) 
 
 @bp.route('/new', methods=['GET', 'POST'])
 def new_transaction():
@@ -196,14 +240,37 @@ def new_account():
     """Create new account"""
     if request.method == 'POST':
         try:
+            name = request.form.get('name', '').strip()
+            account_type = request.form.get('account_type', '').strip()
             parent_id = request.form.get('parent_id')
+
+            # Validate required fields
+            if not name:
+                raise ValueError('Account name is required')
+            if not account_type:
+                raise ValueError('Account type is required')
+
+            # Validate account_type value
+            valid_types = [t.value for t in AccountType]
+            if account_type not in valid_types:
+                raise ValueError('Invalid account type')
+
+            # If parent supplied, ensure it exists and has same account_type
+            parent_id_int = int(parent_id) if parent_id else None
+            if parent_id_int:
+                parent = Account.query.get(parent_id_int)
+                if not parent:
+                    raise ValueError('Selected parent account not found')
+                if parent.account_type != account_type:
+                    raise ValueError('Parent account type must match selected account type')
+
             from uuid import uuid4
             account = Account(
                 code=f"__auto__{uuid4().hex[:8]}",
-                name=request.form['name'],
-                account_type=request.form['account_type'],
+                name=name,
+                account_type=account_type,
                 description=request.form.get('description', ''),
-                parent_id=int(parent_id) if parent_id else None
+                parent_id=parent_id_int
             )
             db.session.add(account)
             db.session.commit()

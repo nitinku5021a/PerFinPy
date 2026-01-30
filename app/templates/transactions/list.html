@@ -7,6 +7,32 @@
     <h1>Journal Entries</h1>
     <a href="{{ url_for('transactions.new_transaction') }}" class="btn btn-primary">New Entry</a>
 </div>
+{% if request.args.get('debug') %}
+<div style="position:fixed;top:10px;right:10px;background:#e74c3c;color:white;padding:8px;border-radius:4px;z-index:9999;">
+Debug: entries={{ entries.total }} period={{ period }} account_id={{ account_id }}
+</div>
+{% endif %}
+
+<div class="report-filters">
+    <form method="GET" action="{{ url_for('transactions.list_transactions') }}">
+        <label for="period">Period:</label>
+        <select id="period" name="period">
+            <option value="all" {% if period == 'all' %}selected{% endif %}>All time</option>
+            <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
+            <option value="current_month" {% if period == 'current_month' %}selected{% endif %}>Current Month</option>
+        </select>
+
+        <label for="account_id">Account:</label>
+        <select id="account_id" name="account_id">
+            <option value="">All Accounts</option>
+            {% for a in accounts_for_select %}
+            <option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.get_path() }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-secondary">Filter</button>
+    </form>
+</div> 
 
 {% if entries.items %}
 <table class="table">
@@ -35,15 +61,23 @@
 <!-- Pagination -->
 <div class="pagination">
     {% if entries.has_prev %}
-        <a href="{{ url_for('transactions.list_transactions', page=entries.prev_num) }}" class="btn btn-secondary">Previous</a>
+        {% if account_id %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.prev_num, period=period, account_id=account_id) }}" class="btn btn-secondary">Previous</a>
+        {% else %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.prev_num, period=period) }}" class="btn btn-secondary">Previous</a>
+        {% endif %}
     {% endif %}
     
     <span>Page {{ entries.page }} of {{ entries.pages }}</span>
     
     {% if entries.has_next %}
-        <a href="{{ url_for('transactions.list_transactions', page=entries.next_num) }}" class="btn btn-secondary">Next</a>
+        {% if account_id %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.next_num, period=period, account_id=account_id) }}" class="btn btn-secondary">Next</a>
+        {% else %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.next_num, period=period) }}" class="btn btn-secondary">Next</a>
+        {% endif %}
     {% endif %}
-</div>
+</div> 
 {% else %}
 <p>No journal entries found. <a href="{{ url_for('transactions.new_transaction') }}">Create one</a></p>
 {% endif %}

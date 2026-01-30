@@ -12,4 +12,4 @@ class Config:
 
     # Application settings
     APP_NAME = os.environ.get('APP_NAME', 'Personal Finance Accounting')
-    DEFAULT_CURRENCY = os.environ.get('DEFAULT_CURRENCY', 'USD')
+    DEFAULT_CURRENCY = os.environ.get('DEFAULT_CURRENCY', 'INR')
