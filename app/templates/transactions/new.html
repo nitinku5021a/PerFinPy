@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}New Transaction - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>New Journal Entry</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="form-large">
+    <fieldset>
+        <legend>Entry Details</legend>
+        
+        <div class="form-group">
+            <label for="entry_date">Entry Date:</label>
+            <input type="date" id="entry_date" name="entry_date" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <input type="text" id="description" name="description" required placeholder="Brief description of transaction">
+        </div>
+        
+        <div class="form-group">
+            <label for="reference">Reference (Check#, Invoice#, etc):</label>
+            <input type="text" id="reference" name="reference" placeholder="Optional reference">
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Notes:</label>
+            <textarea id="notes" name="notes" rows="3"></textarea>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Transaction Lines</legend>
+        <p class="info">Add debit and credit lines. The entry must balance (debits = credits).</p>
+        
+        <div id="lines-container">
+            <div class="transaction-line">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account:</label>
+                        <select name="line_0_account_id" required>
+                            <option value="">-- Select Account --</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Type:</label>
+                        <select name="line_0_type" required>
+                            <option value="DEBIT">Debit</option>
+                            <option value="CREDIT">Credit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount:</label>
+                        <input type="number" name="line_0_amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <input type="text" name="line_0_description">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button type="button" onclick="addLine()" class="btn btn-secondary">Add Line</button>
+    </fieldset>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Entry</button>
+        <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+    let lineCount = 1;
+    
+    function addLine() {
+        const container = document.getElementById('lines-container');
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'transaction-line';
+        lineDiv.innerHTML = `
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Account:</label>
+                    <select name="line_${lineCount}_account_id" required>
+                        <option value="">-- Select Account --</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select name="line_${lineCount}_type" required>
+                        <option value="DEBIT">Debit</option>
+                        <option value="CREDIT">Credit</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount:</label>
+                    <input type="number" name="line_${lineCount}_amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <input type="text" name="line_${lineCount}_description">
+                </div>
+                <button type="button" onclick="removeLine(this)" class="btn btn-danger">Remove</button>
+            </div>
+        `;
+        container.appendChild(lineDiv);
+        lineCount++;
+        
+        // Update line_count hidden field
+        document.querySelector('input[name="line_count"]').value = lineCount;
+    }
+    
+    function removeLine(btn) {
+        btn.closest('.transaction-line').remove();
+    }
+    
+    // Initialize line_count
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const lineCountInput = document.createElement('input');
+        lineCountInput.type = 'hidden';
+        lineCountInput.name = 'line_count';
+        lineCountInput.value = '1';
+        form.appendChild(lineCountInput);
+    });
+</script>
+{% endblock %}

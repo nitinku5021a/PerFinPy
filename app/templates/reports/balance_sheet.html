@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Balance Sheet - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Balance Sheet</h1>
+    <div class="report-period">
+        <label for="period">Period:</label>
+        <select id="period" onchange="window.location.href='?period=' + this.value">
+            <option value="all" {% if period == 'all' %}selected{% endif %}>All time</option>
+            <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
+            <option value="current_month" {% if period == 'current_month' %}selected{% endif %}>Current Month</option>
+        </select>
+    </div>
+</div>
+
+{% if start_date and end_date %}
+<p class="report-date">For the period: {{ start_date.strftime('%B %d, %Y') }} to {{ end_date.strftime('%B %d, %Y') }}</p>
+{% else %}
+<p class="report-date">For the period: All time</p>
+{% endif %}
+
+<div class="report-content">
+    <div class="report-section">
+        <h2>ASSETS</h2>
+        <table class="report-table">
+            <tbody>
+                {% for item in asset_accounts %}
+                <tr>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
+                </tr>
+                {% endfor %}    
+                <tr class="section-total">
+                    <td class="label">Total Assets</td>
+                    <td class="amount">{{ "%.2f"|format(total_assets) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="report-section">
+        <h2>LIABILITIES</h2>
+        <table class="report-table">
+            <tbody>
+                {% for item in liability_accounts %}
+                <tr>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="section-total">
+                    <td class="label">Total Liabilities</td>
+                    <td class="amount">{{ "%.2f"|format(total_liabilities) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="report-section">
+        <h2>EQUITY</h2>
+        <table class="report-table">
+            <tbody>
+                {% for item in equity_accounts %}
+                <tr>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
+                </tr>
+                {% endfor %} 
+                <tr>
+                    <td class="account-name">Net Income</td>
+                    <td class="amount">{{ "%.2f"|format(net_income if net_income >= 0 else 0) }}</td>
+                </tr>
+                <tr class="section-total">
+                    <td class="label">Total Equity</td>
+                    <td class="amount">{{ "%.2f"|format(total_equity) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="report-section grand-total">
+        <table class="report-table">
+            <tbody>
+                <tr>
+                    <td class="label">TOTAL LIABILITIES + EQUITY</td>
+                    <td class="amount">{{ "%.2f"|format(total_liabilities + total_equity) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% if abs(total_assets - (total_liabilities + total_equity)) < 0.01 %}
+    <p class="success">✓ Balance Sheet is balanced</p>
+    {% else %}
+    <p class="error">✗ Balance Sheet is NOT balanced</p>
+    {% endif %}
+</div>
+{% endblock %}

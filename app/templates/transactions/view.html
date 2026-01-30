@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Transaction Details - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Journal Entry #{{ entry.id }}</h1>
+    <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-secondary">Back to List</a>
+    <a href="{{ url_for('transactions.edit_transaction', id=entry.id) }}" class="btn btn-primary">Edit</a>
+</div>
+
+<div class="entry-details">
+    <div class="detail-group">
+        <h3>Entry Information</h3>
+        <dl>
+            <dt>Date:</dt>
+            <dd>{{ entry.entry_date.strftime('%Y-%m-%d') }}</dd>
+            <dt>Description:</dt>
+            <dd>{{ entry.description }}</dd>
+            {% if entry.reference %}
+            <dt>Reference:</dt>
+            <dd>{{ entry.reference }}</dd>
+            {% endif %}
+            {% if entry.notes %}
+            <dt>Notes:</dt>
+            <dd>{{ entry.notes }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<h3>Transaction Lines</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Account</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set total_debits = 0 %}
+        {% set total_credits = 0 %}
+        {% for line in entry.transaction_lines %}
+        <tr>
+            <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name }}</td>
+            <td>{{ line.line_type }}</td>
+            <td class="amount">{{ "%.2f"|format(line.amount) }}</td>
+            <td>{{ line.description or '-' }}</td>
+        </tr>
+        {% if line.line_type == 'DEBIT' %}
+            {% set total_debits = total_debits + line.amount %}
+        {% else %}
+            {% set total_credits = total_credits + line.amount %}
+        {% endif %}
+        {% endfor %}
+        <tr class="total-row">
+            <td colspan="2">TOTAL</td>
+            <td class="amount">{{ "%.2f"|format(total_debits) }}</td>
+            <td></td>
+        </tr>
+        <tr class="total-row">
+            <td colspan="2">TOTAL</td>
+            <td class="amount">{{ "%.2f"|format(total_credits) }}</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+
+{% if entry.is_balanced() %}
+<p class="success">✓ Entry is balanced</p>
+{% else %}
+<p class="error">✗ Entry is NOT balanced</p>
+{% endif %}
+
+{% if entry.edit_logs %}
+<h3>Edit Log</h3>
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th>Edited At</th>
+            <th>Editor</th>
+            <th>Summary</th>
+            <th>Details</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in entry.edit_logs %}
+        <tr>
+            <td>{{ log.edited_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>{{ log.editor or 'web' }}</td>
+            <td>{{ log.change_summary }}</td>
+            <td><details><summary>Show</summary><pre>{{ log.old_data }}</pre><hr/><pre>{{ log.new_data }}</pre></details></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

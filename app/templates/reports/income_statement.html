@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Income Statement - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Income Statement</h1>
+    <div class="report-period">
+        <label for="period">Period:</label>
+        <select id="period" onchange="window.location.href='?period=' + this.value">
+            <option value="all" {% if period == 'all' %}selected{% endif %}>All time</option>
+            <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
+            <option value="current_month" {% if period == 'current_month' %}selected{% endif %}>Current Month</option>
+        </select>
+    </div>
+</div>
+
+{% if start_date and end_date %}
+<p class="report-date">For the period: {{ start_date.strftime('%B %d, %Y') }} to {{ end_date.strftime('%B %d, %Y') }}</p>
+{% else %}
+<p class="report-date">For the period: All time</p>
+{% endif %}
+
+<div class="report-content">
+    <div class="report-section">
+        <h2>REVENUES</h2>
+        <table class="report-table">
+            <tbody>
+                {% for item in revenue_accounts %}
+                <!-- Parent revenue group -->
+                <tr style="background-color: #f5f5f5; font-weight: bold;">
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(abs(item.balance)) }}</td>
+                </tr>
+                {% for child in item.children %}
+                <tr>
+                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(abs(child.balance)) }}</td>
+                </tr>
+                    {% for gc in child.children %}
+                    <tr>
+                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name }}</a></td>
+                        <td class="amount">{{ "%.2f"|format(abs(gc.balance)) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+                {% endfor %}
+                <tr class="section-total">
+                    <td class="label">Total Revenues</td>
+                    <td class="amount">{{ "%.2f"|format(total_revenue) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="report-section">
+        <h2>EXPENSES</h2>
+        <table class="report-table">
+            <tbody>
+                {% for item in expense_accounts %}
+                <!-- Parent expense group -->
+                <tr style="background-color: #f5f5f5; font-weight: bold;">
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
+                </tr>
+                {% for child in item.children %}
+                <tr>
+                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name }}</a></td>
+                    <td class="amount">{{ "%.2f"|format(child.balance) }}</td>
+                </tr>
+                    {% for gc in child.children %}
+                    <tr>
+                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name }}</a></td>
+                        <td class="amount">{{ "%.2f"|format(gc.balance) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+                {% endfor %}
+                <tr class="section-total">
+                    <td class="label">Total Expenses</td>
+                    <td class="amount">{{ "%.2f"|format(total_expenses) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="report-section grand-total">
+        <table class="report-table">
+            <tbody>
+                <tr>
+                    <td class="label">NET INCOME (LOSS)</td>
+                    <td class="amount {% if net_income >= 0 %}positive{% else %}negative{% endif %}">{{ "%.2f"|format(net_income) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

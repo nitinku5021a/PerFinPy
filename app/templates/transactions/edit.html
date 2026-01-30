@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Transaction - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Edit Journal Entry #{{ entry.id }}</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="form-large">
+    <fieldset>
+        <legend>Entry Details</legend>
+        
+        <div class="form-group">
+            <label for="entry_date">Entry Date:</label>
+            <input type="date" id="entry_date" name="entry_date" required value="{{ entry.entry_date.strftime('%Y-%m-%d') }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <input type="text" id="description" name="description" required placeholder="Brief description of transaction" value="{{ entry.description }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="reference">Reference (Check#, Invoice#, etc):</label>
+            <input type="text" id="reference" name="reference" placeholder="Optional reference" value="{{ entry.reference or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Notes:</label>
+            <textarea id="notes" name="notes" rows="3">{{ entry.notes or '' }}</textarea>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Transaction Lines</legend>
+        <p class="info">Edit debit and credit lines. The entry must balance (debits = credits).</p>
+        
+        <div id="lines-container">
+            {% for line in entry.transaction_lines %}
+            {% set i = loop.index0 %}
+            <div class="transaction-line">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account:</label>
+                        <select name="line_{{ i }}_account_id" required>
+                            <option value="">-- Select Account --</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}" {% if account.id == line.account_id %}selected{% endif %}>{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Type:</label>
+                        <select name="line_{{ i }}_type" required>
+                            <option value="DEBIT" {% if line.line_type == 'DEBIT' %}selected{% endif %}>Debit</option>
+                            <option value="CREDIT" {% if line.line_type == 'CREDIT' %}selected{% endif %}>Credit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount:</label>
+                        <input type="number" name="line_{{ i }}_amount" step="0.01" required value="{{ line.amount }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <input type="text" name="line_{{ i }}_description" value="{{ line.description or '' }}">
+                    </div>
+                    <button type="button" onclick="removeLine(this)" class="btn btn-danger">Remove</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <button type="button" onclick="addLine()" class="btn btn-secondary">Add Line</button>
+    </fieldset>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('transactions.view_transaction', id=entry.id) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+    let lineCount = {{ entry.transaction_lines|length }};
+    function addLine() {
+        const container = document.getElementById('lines-container');
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'transaction-line';
+        lineDiv.innerHTML = `
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Account:</label>
+                    <select name="line_${lineCount}_account_id" required>
+                        <option value="">-- Select Account --</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select name="line_${lineCount}_type" required>
+                        <option value="DEBIT">Debit</option>
+                        <option value="CREDIT">Credit</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount:</label>
+                    <input type="number" name="line_${lineCount}_amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <input type="text" name="line_${lineCount}_description">
+                </div>
+                <button type="button" onclick="removeLine(this)" class="btn btn-danger">Remove</button>
+            </div>
+        `;
+        container.appendChild(lineDiv);
+        lineCount++;
+        document.querySelector('input[name="line_count"]').value = lineCount;
+    }
+    function removeLine(btn) {
+        btn.closest('.transaction-line').remove();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const lineCountInput = document.createElement('input');
+        lineCountInput.type = 'hidden';
+        lineCountInput.name = 'line_count';
+        lineCountInput.value = lineCount;
+        form.appendChild(lineCountInput);
+    });
+</script>
+{% endblock %}

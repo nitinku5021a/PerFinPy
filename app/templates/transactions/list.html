@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Journal Entries</h1>
+    <a href="{{ url_for('transactions.new_transaction') }}" class="btn btn-primary">New Entry</a>
+</div>
+
+{% if entries.items %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Reference</th>
+            <th>Description</th>
+            <th>Lines</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries.items %}
+        <tr>
+            <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ entry.reference or '-' }}</td>
+            <td>{{ entry.description }}</td>
+            <td>{{ entry.transaction_lines|length }}</td>
+            <td><a href="{{ url_for('transactions.view_transaction', id=entry.id) }}" class="btn btn-small">View</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if entries.has_prev %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.prev_num) }}" class="btn btn-secondary">Previous</a>
+    {% endif %}
+    
+    <span>Page {{ entries.page }} of {{ entries.pages }}</span>
+    
+    {% if entries.has_next %}
+        <a href="{{ url_for('transactions.list_transactions', page=entries.next_num) }}" class="btn btn-secondary">Next</a>
+    {% endif %}
+</div>
+{% else %}
+<p>No journal entries found. <a href="{{ url_for('transactions.new_transaction') }}">Create one</a></p>
+{% endif %}
+{% endblock %}

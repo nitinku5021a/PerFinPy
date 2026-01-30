@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <h3>Total Journal Entries</h3>
+        <p class="stat-number">{{ total_entries }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Accounts</h3>
+        <p class="stat-number">{{ total_accounts }}</p>
+    </div>
+</div>
+
+<div class="dashboard-actions">
+    <a href="{{ url_for('transactions.new_transaction') }}" class="btn btn-primary">New Transaction</a>
+    <a href="{{ url_for('transactions.new_account') }}" class="btn btn-primary">New Account</a>
+    <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-secondary">View Transactions</a>
+</div>
+
+<div class="quick-links">
+    <h2>Quick Links</h2>
+    <ul>
+        <li><a href="{{ url_for('reports.balance_sheet') }}">Balance Sheet (All time)</a></li>
+        <li><a href="{{ url_for('reports.income_statement') }}">Income Statement (Current Month)</a></li>
+        <li><a href="{{ url_for('reports.trial_balance') }}">Trial Balance (YTD)</a></li>
+        <li><a href="{{ url_for('transactions.list_accounts') }}">Chart of Accounts</a></li>
+    </ul>
+</div>
+{% endblock %}
