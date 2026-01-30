@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Account - Personal Finance Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Edit Account</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="form">
+    <div class="form-group">
+        <label for="name">Account Name:</label>
+        <input type="text" id="name" name="name" required value="{{ account.name }}">
+    </div>
+    
+    <div class="form-group">
+        <label for="account_type">Account Type:</label>
+        <select id="account_type" name="account_type" required>
+                <option value="">-- Select Type --</option>
+                {% if account_types %}
+                    {% for t in account_types %}
+                    <option value="{{ t }}" {% if account.account_type == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                {% endif %}
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="parent_id">Parent Account (optional for grouping):</label>
+        <select id="parent_id" name="parent_id">
+            <option value="">-- No Parent (Top Level) --</option>
+            {% if parent_accounts %}
+                {% for parent in parent_accounts %}
+                <option value="{{ parent.id }}" data-type="{{ parent.account_type }}" {% if account.parent_id == parent.id %}selected{% endif %}>{{ parent.name }}</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+        <small>Select a parent account to create a sub-group. Max 2 levels supported.</small>
+    </div>
+    
+    <div class="form-group">
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" rows="3">{{ account.description or '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="opening_balance">Opening Balance:</label>
+        <input type="number" step="0.01" id="opening_balance" name="opening_balance" placeholder="0.00" value="{{ account.opening_balance or 0.00 }}">
+        <small>Enter opening balance (positive or negative). Default is 0.00.</small>
+    </div>
+    
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('transactions.list_accounts') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+(function(){
+    const typeSelect = document.getElementById('account_type');
+    const parentSelect = document.getElementById('parent_id');
+    function filterParents() {
+        const selectedType = typeSelect.value;
+        for (const opt of parentSelect.options) {
+            const optType = opt.getAttribute('data-type');
+            if (!optType) continue; // top-level "No Parent"
+            if (!selectedType) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = (optType === selectedType) ? '' : 'none';
+            }
+        }
+        // If currently selected parent no longer matches, clear it
+        if (parentSelect.value) {
+            const sel = parentSelect.selectedOptions[0];
+            if (sel && sel.getAttribute('data-type') !== selectedType) {
+                parentSelect.value = '';
+            }
+        }
+    }
+    typeSelect.addEventListener('change', filterParents);
+    filterParents();
+})();
+</script>
+
+{% endblock %}

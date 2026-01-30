@@ -92,12 +92,17 @@ def new_transaction():
                 amount = float(amount_str) if amount_str else 0.0
                 line_desc = request.form.get(f'line_{i}_description', '')
                 
-                if account_id and amount > 0 and line_type:
+                if account_id and amount != 0 and line_type:
+                    # Normalize negative amounts: flip type when amount is negative
+                    amt = abs(amount)
+                    lt = line_type.upper()
+                    if amount < 0:
+                        lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
                     tl = TransactionLine(
                         journal_entry_id=je.id,
                         account_id=int(account_id),
-                        line_type=line_type.upper(),
-                        amount=amount,
+                        line_type=lt,
+                        amount=amt,
                         date=entry_date,
                         description=line_desc
                     )
@@ -176,12 +181,16 @@ def edit_transaction(id):
                 amount = float(amount_str) if amount_str else 0.0
                 line_desc = request.form.get(f'line_{i}_description', '')
 
-                if account_id and amount > 0 and line_type:
+                if account_id and amount != 0 and line_type:
+                    amt = abs(amount)
+                    lt = line_type.upper()
+                    if amount < 0:
+                        lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
                     tl = TransactionLine(
                         journal_entry_id=entry.id,
                         account_id=int(account_id),
-                        line_type=line_type.upper(),
-                        amount=amount,
+                        line_type=lt,
+                        amount=amt,
                         date=entry.entry_date,
                         description=line_desc
                     )
@@ -269,12 +278,20 @@ def new_account():
                     raise ValueError('Parent account type must match selected account type')
 
             from uuid import uuid4
+            # parse opening_balance
+            opening_balance_str = request.form.get('opening_balance', '').strip()
+            try:
+                opening_balance = float(opening_balance_str) if opening_balance_str else 0.0
+            except ValueError:
+                raise ValueError('Invalid opening balance')
+
             account = Account(
                 code=f"__auto__{uuid4().hex[:8]}",
                 name=name,
                 account_type=account_type,
                 description=request.form.get('description', ''),
-                parent_id=parent_id_int
+                parent_id=parent_id_int,
+                opening_balance=opening_balance
             )
             db.session.add(account)
             db.session.commit()
@@ -288,6 +305,79 @@ def new_account():
     account_types = [t.value for t in AccountType]
     parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
     return render_template('transactions/new_account.html', account_types=account_types, parent_accounts=parent_accounts)
+
+
+@bp.route('/accounts/<int:id>/edit', methods=['GET', 'POST'])
+def edit_account(id):
+    """Edit existing account (name, type, parent, description) with strict validation on type changes"""
+    account = Account.query.get_or_404(id)
+
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', '').strip()
+            account_type = request.form.get('account_type', '').strip()
+            parent_id = request.form.get('parent_id')
+            description = request.form.get('description', '')
+
+            if not name:
+                raise ValueError('Account name is required')
+            if not account_type:
+                raise ValueError('Account type is required')
+            valid_types = [t.value for t in AccountType]
+            if account_type not in valid_types:
+                raise ValueError('Invalid account type')
+
+            parent_id_int = int(parent_id) if parent_id else None
+            # prevent cycles: parent cannot be self or descendant
+            if parent_id_int:
+                if parent_id_int == account.id:
+                    raise ValueError('Parent cannot be the account itself')
+                descendants = account.get_all_descendants()
+                if any(d.id == parent_id_int for d in descendants):
+                    raise ValueError('Parent cannot be a descendant of the account')
+                parent = Account.query.get(parent_id_int)
+                if not parent:
+                    raise ValueError('Selected parent account not found')
+                if parent.account_type != account_type:
+                    raise ValueError('Parent account type must match selected account type')
+
+            # If changing type, ensure no transactions exist in subtree; if safe, cascade new type to descendants
+            if account_type != account.account_type:
+                subtree = [account] + account.get_all_descendants()
+                subtree_ids = [a.id for a in subtree]
+                from app.models import TransactionLine as TL
+                tl_count = TL.query.filter(TL.account_id.in_(subtree_ids)).count()
+                if tl_count > 0:
+                    raise ValueError('Cannot change account type: account or descendants have transactions')
+                # cascade change
+                for a in subtree:
+                    a.account_type = account_type
+
+            # parse opening_balance
+            opening_balance_str = request.form.get('opening_balance', '').strip()
+            try:
+                opening_balance = float(opening_balance_str) if opening_balance_str else 0.0
+            except ValueError:
+                raise ValueError('Invalid opening balance')
+
+            # apply changes
+            account.name = name
+            account.account_type = account_type
+            account.parent_id = parent_id_int
+            account.description = description
+            account.opening_balance = opening_balance
+
+            db.session.commit()
+            return redirect(url_for('transactions.list_accounts'))
+        except Exception as e:
+            db.session.rollback()
+            account_types = [t.value for t in AccountType]
+            parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
+            return render_template('transactions/edit_account.html', account=account, account_types=account_types, parent_accounts=parent_accounts, error=str(e))
+
+    account_types = [t.value for t in AccountType]
+    parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
+    return render_template('transactions/edit_account.html', account=account, account_types=account_types, parent_accounts=parent_accounts)
 
 @bp.route('/api/accounts')
 def api_accounts():
@@ -365,6 +455,16 @@ def export_transactions():
     complex_ws = wb.create_sheet('Complex Entries')
     complex_ws.append(['JE ID', 'Date', 'Description', 'Account Path', 'Type', 'Amount'])
 
+    # Accounts sheet with opening balances to allow round-trip import/export
+    accounts_ws = wb.create_sheet('Accounts')
+    accounts_ws.append(['Account Path', 'Opening Balance', 'Account Type', 'Code', 'Description'])
+    from app.models import Account
+    # Order accounts predictably by type and path
+    accounts = Account.query.order_by(Account.account_type.asc(), Account.parent_id.asc(), Account.name.asc()).all()
+
+    for a in accounts:
+        accounts_ws.append([a.get_export_path(), a.opening_balance or 0.0, a.account_type, a.code or '', a.description or ''])
+
     for je in q.all():
         debit_lines = [l for l in je.transaction_lines if (l.line_type or '').upper() == 'DEBIT']
         credit_lines = [l for l in je.transaction_lines if (l.line_type or '').upper() == 'CREDIT']
@@ -372,10 +472,10 @@ def export_transactions():
         if len(debit_lines) == 1 and len(credit_lines) == 1:
             d = debit_lines[0]
             c = credit_lines[0]
-            ws.append([je.entry_date.strftime('%d-%m-%Y'), d.account.get_path(), je.description or '', d.amount, c.account.get_path()])
+            ws.append([je.entry_date.strftime('%d-%m-%Y'), d.account.get_export_path(), je.description or '', d.amount, c.account.get_export_path()])
         else:
             for l in je.transaction_lines:
-                complex_ws.append([je.id, je.entry_date.strftime('%d-%m-%Y'), je.description or '', l.account.get_path(), l.line_type, l.amount])
+                complex_ws.append([je.id, je.entry_date.strftime('%d-%m-%Y'), je.description or '', l.account.get_export_path(), l.line_type, l.amount])
 
     stream = BytesIO()
     wb.save(stream)

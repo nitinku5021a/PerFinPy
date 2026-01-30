@@ -20,6 +20,7 @@ class Account(db.Model):
     account_type = db.Column(db.String(20), nullable=False)  # Asset, Liability, Equity, Income, Expense
     description = db.Column(db.Text)
     parent_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=True)  # Parent account for grouping
+    opening_balance = db.Column(db.Float, default=0.0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -55,7 +56,12 @@ class Account(db.Model):
             parts.insert(0, node.name)
             node = node.parent
         return ':'.join(parts)
-    
+
+    def get_export_path(self):
+        """Return account path prefixed with account type for importer/exporter interoperability: 'Asset:TopLevel:Child:Leaf'"""
+        path = self.get_path()
+        # Ensure account_type exists and is the first segment
+        return f"{self.account_type}:{path}"    
     def get_balance(self, start_date=None, end_date=None):
         """Calculate account balance for a period (only for leaf accounts)"""
         query = TransactionLine.query.filter_by(account_id=self.id)
@@ -68,6 +74,8 @@ class Account(db.Model):
         lines = query.all()
         # Debits increase balance, credits decrease balance
         balance = sum((line.amount if (line.line_type or '').upper() == 'DEBIT' else -line.amount) for line in lines)
+        # include opening balance
+        balance += (self.opening_balance or 0.0)
         return balance
     
     def get_group_balance(self, start_date=None, end_date=None):

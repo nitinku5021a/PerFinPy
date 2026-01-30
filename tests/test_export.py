@@ -38,7 +38,19 @@ def test_export_transactions():
         header = [c.value for c in rows[0]]
         assert header == ['Date', 'Debit Account', 'Description', 'Amount', 'Credit Account']
 
+        # Accounts sheet should be present and include Opening Balance
+        assert 'Accounts' in wb.sheetnames
+        acc_ws = wb['Accounts']
+        acc_rows = list(acc_ws.rows)
+        assert len(acc_rows) >= 1
+        acc_header = [c.value for c in acc_rows[0]]
+        assert 'Opening Balance' in acc_header
+
         # spot-check a data row
         first_row = [c.value for c in rows[1]]
         assert first_row[0] is not None and first_row[1] is not None and isinstance(first_row[3], (int, float))
+        # debit account path should be prefixed by account type (e.g., 'Asset:...')
+        from app.models import AccountType
+        debit_path = first_row[1]
+        assert isinstance(debit_path, str) and ':' in debit_path and debit_path.split(':')[0] in [t.value for t in AccountType]
 

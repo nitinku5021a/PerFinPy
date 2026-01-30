@@ -113,6 +113,14 @@
                         {% endfor %}
                     {% endfor %}
                 {% endfor %}
+
+                {% if carry_forward and carry_forward != 0 %}
+                <tr>
+                    <td class="account-name">Opening Balance (Carry Forward)</td>
+                    <td class="amount" style="text-align: right;">{{ carry_forward|inr }}</td>
+                </tr>
+                {% endif %}
+
                 <tr>
                     <td class="account-name">Net Income</td>
                     <td class="amount" style="text-align: right;">{{ (net_income if net_income >= 0 else 0)|inr }}</td>

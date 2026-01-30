@@ -88,7 +88,13 @@ def networth():
     total_equity = sum(acc['balance'] for acc in equity_accounts)
     net_income = get_net_income(start_date, end_date)
     total_equity += net_income
-    
+
+    # If opening balances on asset/liability sides cause imbalance, compute a carry-forward
+    # amount to show under Equity as 'Opening Balance (Carry Forward)'. This makes the statement balance.
+    carry_forward = total_assets - (total_liabilities + total_equity)
+    # Add the carry-forward into total_equity so totals include it
+    total_equity += carry_forward
+
     return render_template('reports/networth.html',
                          asset_accounts=asset_accounts,
                          liability_accounts=liability_accounts,
@@ -97,6 +103,7 @@ def networth():
                          total_liabilities=total_liabilities,
                          total_equity=total_equity,
                          net_income=net_income,
+                         carry_forward=carry_forward,
                          start_date=start_date,
                          end_date=end_date,
                          period=period,

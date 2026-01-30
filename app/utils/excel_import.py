@@ -149,11 +149,11 @@ def parse_transaction_row(row, row_num):
                 except ValueError:
                     raise ValueError(f"Invalid date format '{date_str}'. Expected DD-MM-YYYY or YYYY-MM-DD")
         
-        # Parse amount
+        # Parse amount (allow negative amounts as reversals)
         try:
             amount = float(amount_str)
-            if amount <= 0:
-                raise ValueError(f"Amount must be positive, got {amount}")
+            if amount == 0:
+                raise ValueError(f"Amount must be non-zero, got {amount}")
         except ValueError:
             raise ValueError(f"Invalid amount '{amount_str}'")
         
@@ -203,10 +203,60 @@ def import_transactions_from_excel(file_stream):
             results['warnings'].append(f"Removed legacy top-level accounts: {', '.join(removed)}")
 
         workbook = load_workbook(file_stream, data_only=True)
-        worksheet = workbook.active
+
+        # Prefer an explicit 'Transactions' sheet; otherwise try to discover a sheet with the expected header
+        transactions_ws = None
+        expected_header = ['Date', 'Debit Account', 'Description', 'Amount', 'Credit Account']
+        if 'Transactions' in workbook.sheetnames:
+            transactions_ws = workbook['Transactions']
+        else:
+            # Try to find a sheet whose first row matches the expected header
+            for name in workbook.sheetnames:
+                ws_try = workbook[name]
+                try:
+                    first_row = next(ws_try.iter_rows(min_row=1, max_row=1, values_only=True))
+                    first_row_vals = [str(x).strip() if x is not None else '' for x in first_row]
+                    if first_row_vals[:5] == expected_header:
+                        transactions_ws = ws_try
+                        break
+                except StopIteration:
+                    continue
+            # Fallback to active sheet if nothing better found
+            if transactions_ws is None:
+                transactions_ws = workbook.active
+
+        # If workbook contains an Accounts sheet, read opening balances first
+        if 'Accounts' in workbook.sheetnames:
+            acc_ws = workbook['Accounts']
+            for acc_row_idx, acc_row in enumerate(acc_ws.iter_rows(min_row=2, values_only=True), start=2):
+                # Expect columns: Account Path, Opening Balance, Account Type(optional), Code(optional), Description(optional)
+                if not acc_row or not acc_row[0]:
+                    continue
+                acc_path = str(acc_row[0]).strip()
+                opening_val = acc_row[1] if len(acc_row) > 1 else None
+                try:
+                    # Determine explicit type if first segment is an AccountType
+                    segs = [s.strip() for s in acc_path.split(':') if s and s.strip()]
+                    type_names = [t.value.lower() for t in AccountType]
+                    if segs and segs[0].lower() in type_names:
+                        account_type = next(t.value for t in AccountType if t.value.lower() == segs[0].lower())
+                    else:
+                        account_type = detect_account_type(acc_path, default='Asset')
+
+                    acc = parse_account_path(acc_path, account_type)
+                    if opening_val is not None and opening_val != '':
+                        try:
+                            acc.opening_balance = float(opening_val)
+                            db.session.add(acc)
+                        except Exception:
+                            results['warnings'].append(f"Accounts sheet row {acc_row_idx}: invalid opening balance '{opening_val}', skipping")
+                except Exception as e:
+                    results['warnings'].append(f"Accounts sheet row {acc_row_idx}: {str(e)}")
+            # commit account creations/updates before processing transactions
+            db.session.commit()
 
         rows_processed = 0
-        for row_idx, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
+        for row_idx, row in enumerate(transactions_ws.iter_rows(min_row=2, values_only=True), start=2):
             # Skip empty rows
             if not row or not any(row):
                 continue
@@ -222,11 +272,20 @@ def import_transactions_from_excel(file_stream):
                 db.session.add(je)
                 db.session.flush()
                 
+                # Normalize negative amount: if amount < 0, treat as reversal (swap debit/credit roles)
+                if amount < 0:
+                    amount = abs(amount)
+                    debit_type = 'CREDIT'
+                    credit_type = 'DEBIT'
+                else:
+                    debit_type = 'DEBIT'
+                    credit_type = 'CREDIT'
+
                 # Create debit line
                 debit_line = TransactionLine(
                     journal_entry_id=je.id,
                     account_id=debit_account.id,
-                    line_type='DEBIT',
+                    line_type=debit_type,
                     amount=amount,
                     date=entry_date,
                     description=description
@@ -237,7 +296,7 @@ def import_transactions_from_excel(file_stream):
                 credit_line = TransactionLine(
                     journal_entry_id=je.id,
                     account_id=credit_account.id,
-                    line_type='CREDIT',
+                    line_type=credit_type,
                     amount=amount,
                     date=entry_date,
                     description=description

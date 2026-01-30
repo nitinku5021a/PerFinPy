@@ -14,6 +14,7 @@
         <tr>
             <th>Name</th>
             <th>Type</th>
+            <th>Opening</th>
             <th>Description</th>
             <th style="text-align: right;">Balance</th>
             <th>Status</th>
@@ -26,9 +27,11 @@
                 <tr style="background-color: #f0f0f0; font-weight: bold;">
                     <td>{{ account.name }}</td>
                     <td>{{ account.account_type }}</td>
+                    <td style="text-align: right;">{{ account.opening_balance|inr }}</td>
                     <td>{{ account.description or '-' }}</td>
                     <td style="text-align: right;">{{ account.get_group_balance()|inr }}</td>
                     <td>{% if account.is_active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}</td>
+                    <td><a href="{{ url_for('transactions.edit_account', id=account.id) }}" class="btn btn-small">Edit</a></td>
                 </tr>
                 <!-- Child accounts -->
                 {% for child in account.children %}
@@ -38,6 +41,7 @@
                     <td>{{ child.description or '-' }}</td>
                     <td style="text-align: right;">{{ (child.get_group_balance() if child.is_group() else child.get_balance())|inr }}</td>
                     <td>{% if child.is_active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}</td>
+                    <td><a href="{{ url_for('transactions.edit_account', id=child.id) }}" class="btn btn-small">Edit</a></td>
                 </tr>
                     {% for gc in child.children %}
                     <tr>
