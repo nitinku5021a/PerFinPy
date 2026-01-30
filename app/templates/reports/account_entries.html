@@ -29,7 +29,7 @@
                 <tr>
                     <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name }}</td>
                     <td>{{ line.line_type }}</td>
-                    <td class="amount">{{ "%.2f"|format(line.amount) }}</td>
+                    <td class="amount">{{ line.amount|inr }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

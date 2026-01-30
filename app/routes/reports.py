@@ -136,7 +136,8 @@ def income_statement():
                          net_income=net_income,
                          start_date=start_date,
                          end_date=end_date,
-                         period=period)
+                         period=period,
+                         abs=abs)
 
 def get_net_income(start_date=None, end_date=None):
     """Calculate net income for a period"""

@@ -27,7 +27,7 @@
                     <td>{{ account.name }}</td>
                     <td>{{ account.account_type }}</td>
                     <td>{{ account.description or '-' }}</td>
-                    <td style="text-align: right;">{{ "%.2f"|format(account.get_group_balance()) }}</td>
+                    <td style="text-align: right;">{{ account.get_group_balance()|inr }}</td>
                     <td>{% if account.is_active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}</td>
                 </tr>
                 <!-- Child accounts -->
@@ -36,7 +36,7 @@
                     <td style="padding-left: 20px;">├─ {{ child.name }}</td>
                     <td>{{ child.account_type }}</td>
                     <td>{{ child.description or '-' }}</td>
-                    <td style="text-align: right;">{{ "%.2f"|format(child.get_group_balance() if child.is_group() else child.get_balance()) }}</td>
+                    <td style="text-align: right;">{{ (child.get_group_balance() if child.is_group() else child.get_balance())|inr }}</td>
                     <td>{% if child.is_active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}</td>
                 </tr>
                     {% for gc in child.children %}
@@ -44,7 +44,7 @@
                         <td style="padding-left: 40px;">└─ {{ gc.name }}</td>
                         <td>{{ gc.account_type }}</td>
                         <td>{{ gc.description or '-' }}</td>
-                        <td style="text-align: right;">{{ "%.2f"|format(gc.get_balance()) }}</td>
+                        <td style="text-align: right;">{{ gc.get_balance()|inr }}</td>
                         <td>{% if gc.is_active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}</td>
                     </tr>
                     {% endfor %}

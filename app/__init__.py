@@ -9,6 +9,32 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     
     db.init_app(app)
+
+    # Formatter for Indian number grouping (lakhs, crores) - rounds to integer and formats with commas
+    def format_inr(value):
+        try:
+            n = int(round(float(value)))
+        except Exception:
+            return value or ''
+        sign = '-' if n < 0 else ''
+        n = abs(n)
+        s = str(n)
+        if len(s) <= 3:
+            return sign + s
+        last3 = s[-3:]
+        rest = s[:-3]
+        parts = []
+        while len(rest) > 2:
+            parts.insert(0, rest[-2:])
+            rest = rest[:-2]
+        if rest:
+            parts.insert(0, rest)
+        formatted = ','.join(parts) + ',' + last3
+        return sign + formatted
+
+    # Register jinja filters
+    app.jinja_env.filters['inr'] = format_inr
+    app.jinja_env.filters['abs'] = abs
     
     with app.app_context():
         # Import models

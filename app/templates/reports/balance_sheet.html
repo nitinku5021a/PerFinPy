@@ -34,7 +34,7 @@
                 {% endfor %}    
                 <tr class="section-total">
                     <td class="label">Total Assets</td>
-                    <td class="amount">{{ "%.2f"|format(total_assets) }}</td>
+                    <td class="amount">{{ total_assets|inr }}</td>
                 </tr>
             </tbody>
         </table>
@@ -52,7 +52,7 @@
                 {% endfor %}
                 <tr class="section-total">
                     <td class="label">Total Liabilities</td>
-                    <td class="amount">{{ "%.2f"|format(total_liabilities) }}</td>
+                    <td class="amount">{{ total_liabilities|inr }}</td>
                 </tr>
             </tbody>
         </table>
@@ -70,11 +70,11 @@
                 {% endfor %} 
                 <tr>
                     <td class="account-name">Net Income</td>
-                    <td class="amount">{{ "%.2f"|format(net_income if net_income >= 0 else 0) }}</td>
+                    <td class="amount">{{ (net_income if net_income >= 0 else 0)|inr }}</td>
                 </tr>
                 <tr class="section-total">
                     <td class="label">Total Equity</td>
-                    <td class="amount">{{ "%.2f"|format(total_equity) }}</td>
+                    <td class="amount">{{ total_equity|inr }}</td>
                 </tr>
             </tbody>
         </table>
