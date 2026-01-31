@@ -25,7 +25,7 @@ def test_networth_includes_opening_balance_carry_and_balances():
         resp = client.get('/reports/networth')
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        # Carry-forward row should be present
-        assert 'Opening Balance (Carry Forward)' in body
+        # Carry Forward (plug) row should be present when assets exceed liabilities + equity
+        assert 'Carry Forward' in body
         # Page should indicate the statement is balanced
         assert 'Networth Statement is balanced' in body

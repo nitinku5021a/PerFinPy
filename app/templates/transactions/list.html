@@ -23,7 +23,7 @@ Debug: entries={{ entries.total }} period={{ period }} account_id={{ account_id 
         <select id="account_id" name="account_id">
             <option value="">All Accounts</option>
             {% for a in accounts_for_select %}
-            <option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.get_path() }}</option>
+            <option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.get_path()|camelcase }}</option>
             {% endfor %}
         </select>
         <button type="submit" class="btn btn-secondary">Filter</button>

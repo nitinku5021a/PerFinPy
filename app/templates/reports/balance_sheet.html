@@ -23,7 +23,7 @@
             <tbody>
                 {% for item in asset_accounts %}
                 <tr>
-                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                     <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
                 </tr>
                 {% endfor %}    
@@ -41,7 +41,7 @@
             <tbody>
                 {% for item in liability_accounts %}
                 <tr>
-                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                     <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
                 </tr>
                 {% endfor %}
@@ -59,7 +59,7 @@
             <tbody>
                 {% for item in equity_accounts %}
                 <tr>
-                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                     <td class="amount">{{ "%.2f"|format(item.balance) }}</td>
                 </tr>
                 {% endfor %} 

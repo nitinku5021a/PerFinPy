@@ -32,9 +32,21 @@ def create_app(config_class=Config):
         formatted = ','.join(parts) + ',' + last3
         return sign + formatted
 
+    def camelcase(s):
+        """Display string in CamelCase (title case). For paths like 'Parent:Child', title each segment."""
+        if s is None:
+            return ''
+        s = str(s).strip()
+        if not s:
+            return ''
+        if ':' in s:
+            return ':'.join((p.strip().title() for p in s.split(':')))
+        return s.title()
+
     # Register jinja filters
     app.jinja_env.filters['inr'] = format_inr
     app.jinja_env.filters['abs'] = abs
+    app.jinja_env.filters['camelcase'] = camelcase
     
     with app.app_context():
         # Import models

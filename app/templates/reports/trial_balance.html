@@ -28,7 +28,7 @@
         <tbody>
             {% for item in account_balances %}
             <tr>
-                <td><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                <td><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                 <td>{{ item.type }}</td>
                 <td class="amount">{{ item.balance|inr }}</td>
             </tr>

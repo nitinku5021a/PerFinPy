@@ -44,7 +44,7 @@
         {% set total_credits = 0 %}
         {% for line in entry.transaction_lines %}
         <tr>
-            <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name }}</td>
+            <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name|camelcase }}</td>
             <td>{{ line.line_type }}</td>
             <td class="amount">{{ "%.2f"|format(line.amount) }}</td>
             <td>{{ line.description or '-' }}</td>

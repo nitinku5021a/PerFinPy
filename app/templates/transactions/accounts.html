@@ -25,7 +25,7 @@
             {% if account.parent_id is none %}
                 <!-- Parent/Group account -->
                 <tr style="background-color: #f0f0f0; font-weight: bold;">
-                    <td>{{ account.name }}</td>
+                    <td>{{ account.name|camelcase }}</td>
                     <td>{{ account.account_type }}</td>
                     <td style="text-align: right;">{{ account.opening_balance|inr }}</td>
                     <td>{{ account.description or '-' }}</td>
@@ -36,7 +36,7 @@
                 <!-- Child accounts -->
                 {% for child in account.children %}
                 <tr>
-                    <td style="padding-left: 20px;">├─ {{ child.name }}</td>
+                    <td style="padding-left: 20px;">├─ {{ child.name|camelcase }}</td>
                     <td>{{ child.account_type }}</td>
                     <td>{{ child.description or '-' }}</td>
                     <td style="text-align: right;">{{ (child.get_group_balance() if child.is_group() else child.get_balance())|inr }}</td>
@@ -45,7 +45,7 @@
                 </tr>
                     {% for gc in child.children %}
                     <tr>
-                        <td style="padding-left: 40px;">└─ {{ gc.name }}</td>
+                        <td style="padding-left: 40px;">└─ {{ gc.name|camelcase }}</td>
                         <td>{{ gc.account_type }}</td>
                         <td>{{ gc.description or '-' }}</td>
                         <td style="text-align: right;">{{ gc.get_balance()|inr }}</td>

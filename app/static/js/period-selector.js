@@ -176,6 +176,8 @@
         wrap.addEventListener('click', function (e) {
             const dayBtn = e.target.closest('.period-calendar-day');
             if (dayBtn) {
+                e.preventDefault();
+                e.stopPropagation();
                 const panel = dayBtn.getAttribute('data-panel');
                 const dateStr = dayBtn.getAttribute('data-date');
                 const parts = dateStr.split('-');
@@ -239,7 +241,8 @@
 
         document.addEventListener('click', function (e) {
             if (popover.hidden) return;
-            if (wrap.contains(e.target) || e.target === displayBtn) return;
+            if (displayBtn.contains(e.target)) return;
+            if (popover.contains(e.target)) return;
             popover.hidden = true;
             displayBtn.setAttribute('aria-expanded', 'false');
         });

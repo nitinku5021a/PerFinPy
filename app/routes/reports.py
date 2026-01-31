@@ -81,6 +81,26 @@ def build_two_level_tree(parent_accounts, start_date, end_date, show_zero=False,
     return accounts_with_balance
 
 
+def _sum_opening_balance_for_roots(roots):
+    """Sum ledger opening_balance for given roots and all their descendants (stated in ledger only)."""
+    total = 0.0
+    for acc in roots:
+        total += (acc.opening_balance or 0.0)
+        for child in acc.children:
+            total += (child.opening_balance or 0.0)
+            for gc in child.children:
+                total += (gc.opening_balance or 0.0)
+    return total
+
+
+def _sum_balance_for_roots(roots, start_date, end_date):
+    """Sum balance for ALL accounts under given roots (for accurate totals, independent of show_zero)."""
+    total = 0.0
+    for acc in roots:
+        total += acc.get_group_balance(start_date, end_date) if acc.is_group() else acc.get_balance(start_date, end_date)
+    return total
+
+
 @bp.route('/networth')
 def networth():
     """Networth Report (Personal Finance Balance Sheet) - Side by side layout"""
@@ -95,23 +115,26 @@ def networth():
     # Determine whether to show zero balances based on query parameter
     show_zero = request.args.get('show_zero', '0') in ('1', 'true', 'True')
 
-    # Build two-level trees for display
+    # Build two-level trees for display (balances as of end_date; show_zero only affects which rows are shown)
     asset_accounts = build_two_level_tree(assets, start_date, end_date, show_zero=show_zero)
     liability_accounts = build_two_level_tree(liabilities, start_date, end_date, show_zero=show_zero)
     equity_accounts = build_two_level_tree(equity, start_date, end_date, show_zero=show_zero)
-    
-    # Calculate totals
-    total_assets = sum(acc['balance'] for acc in asset_accounts)
-    total_liabilities = sum(acc['balance'] for acc in liability_accounts)
-    total_equity = sum(acc['balance'] for acc in equity_accounts)
-    net_income = get_net_income(start_date, end_date)
-    total_equity += net_income
 
-    # If opening balances on asset/liability sides cause imbalance, compute a carry-forward
-    # amount to show under Equity as 'Opening Balance (Carry Forward)'. This makes the statement balance.
-    carry_forward = total_assets - (total_liabilities + total_equity)
-    # Add the carry-forward into total_equity so totals include it
-    total_equity += carry_forward
+    # Totals must sum ALL accounts so that (change in period) = (income in new period). If we summed
+    # only the display tree, accounts omitted by show_zero would drop in/out when balance crosses zero,
+    # distorting the change between July and August (data accuracy bug).
+    total_assets = _sum_balance_for_roots(assets, start_date, end_date)
+    total_liabilities = _sum_balance_for_roots(liabilities, start_date, end_date)
+    total_equity_before_carry = _sum_balance_for_roots(equity, start_date, end_date)
+    net_income = get_net_income(start_date, end_date)
+    total_equity_before_carry += net_income
+
+    # Opening Balance: from ledger only (sum of stated opening_balance for Equity accounts). Not a plug.
+    opening_balance_ledger = _sum_opening_balance_for_roots(equity)
+
+    # Carry Forward: plug to make the statement balance (Assets = Liabilities + Equity).
+    carry_forward = total_assets - (total_liabilities + total_equity_before_carry)
+    total_equity = total_equity_before_carry + carry_forward
 
     return render_template('reports/networth.html',
                          asset_accounts=asset_accounts,
@@ -121,6 +144,7 @@ def networth():
                          total_liabilities=total_liabilities,
                          total_equity=total_equity,
                          net_income=net_income,
+                         opening_balance_ledger=opening_balance_ledger,
                          carry_forward=carry_forward,
                          start_date=start_date,
                          end_date=end_date,

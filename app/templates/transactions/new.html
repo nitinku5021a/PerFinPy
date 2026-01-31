@@ -48,7 +48,7 @@
                         <select name="line_0_account_id" required>
                             <option value="">-- Select Account --</option>
                             {% for account in accounts %}
-                            <option value="{{ account.id }}">{{ account.name }}</option>
+                            <option value="{{ account.id }}">{{ account.name|camelcase }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -94,7 +94,7 @@
                     <select name="line_${lineCount}_account_id" required>
                         <option value="">-- Select Account --</option>
                         {% for account in accounts %}
-                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        <option value="{{ account.id }}">{{ account.name|camelcase }}</option>
                         {% endfor %}
                     </select>
                 </div>

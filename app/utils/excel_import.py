@@ -38,9 +38,13 @@ def parse_account_path(path_str, account_type):
         if not name:
             raise ValueError(f"Empty account name in path: {path_str}")
         
-        # Top level - try to find by name and account_type
+        # Top level - try to find by name (case-insensitive) and account_type
         if i == 0:
-            current_account = Account.query.filter_by(name=name, parent_id=None, account_type=account_type).first()
+            current_account = Account.query.filter(
+                db.func.lower(Account.name) == name.lower(),
+                Account.parent_id.is_(None),
+                Account.account_type == account_type
+            ).first()
             if not current_account:
                 from uuid import uuid4
                 current_account = Account(
@@ -53,8 +57,12 @@ def parse_account_path(path_str, account_type):
                 db.session.flush()
             parent_account = current_account
         else:
-            # Child of parent - attempt to find by name under parent with same account_type
-            current_account = Account.query.filter_by(name=name, parent_id=parent_account.id, account_type=account_type).first()
+            # Child of parent - find by name (case-insensitive) under parent with same account_type
+            current_account = Account.query.filter(
+                db.func.lower(Account.name) == name.lower(),
+                Account.parent_id == parent_account.id,
+                Account.account_type == account_type
+            ).first()
             if not current_account:
                 from uuid import uuid4
                 current_account = Account(
@@ -190,7 +198,10 @@ def import_transactions_from_excel(file_stream):
         type_names = [t.value for t in AccountType]
         removed = []
         for tname in type_names:
-            acc = Account.query.filter_by(name=tname, parent_id=None).first()
+            acc = Account.query.filter(
+                db.func.lower(Account.name) == tname.lower(),
+                Account.parent_id.is_(None)
+            ).first()
             if acc:
                 # Only remove if it's truly orphaned (no children and no transaction lines pointing to it)
                 if not acc.children:

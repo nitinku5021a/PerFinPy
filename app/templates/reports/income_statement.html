@@ -27,17 +27,17 @@
                 {% for item in income_accounts %}
                 <!-- Parent income group -->
                 <tr style="background-color: #f5f5f5; font-weight: bold;">
-                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                     <td class="amount">{{ item.balance|abs|inr }}</td>
                 </tr>
                 {% for child in item.children %}
                 <tr>
-                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name }}</a></td>
+                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name|camelcase }}</a></td>
                     <td class="amount">{{ child.balance|abs|inr }}</td>
                 </tr>
                     {% for gc in child.children %}
                     <tr>
-                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name }}</a></td>
+                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name|camelcase }}</a></td>
                         <td class="amount">{{ gc.balance|abs|inr }}</td>
                     </tr>
                     {% endfor %}
@@ -58,17 +58,17 @@
                 {% for item in expense_accounts %}
                 <!-- Parent expense group -->
                 <tr style="background-color: #f5f5f5; font-weight: bold;">
-                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name }}</a></td>
+                    <td class="account-name"><a href="{{ url_for('reports.account_entries', account_id=item.account.id, period=period) }}">{{ item.account.name|camelcase }}</a></td>
                     <td class="amount">{{ item.balance|inr }}</td>
                 </tr>
                 {% for child in item.children %}
                 <tr>
-                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name }}</a></td>
+                    <td class="account-name" style="padding-left: 40px;"><a href="{{ url_for('reports.account_entries', account_id=child.account.id, period=period) }}">{{ child.account.name|camelcase }}</a></td>
                     <td class="amount">{{ child.balance|inr }}</td>
                 </tr>
                     {% for gc in child.children %}
                     <tr>
-                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name }}</a></td>
+                        <td class="account-name" style="padding-left: 80px;">└─ <a href="{{ url_for('reports.account_entries', account_id=gc.account.id, period=period) }}">{{ gc.account.name|camelcase }}</a></td>
                         <td class="amount">{{ gc.balance|inr }}</td>
                     </tr>
                     {% endfor %}

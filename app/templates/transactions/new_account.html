@@ -41,7 +41,7 @@
             <option value="">-- No Parent (Top Level) --</option>
             {% if parent_accounts %}
                 {% for parent in parent_accounts %}
-                <option value="{{ parent.id }}" data-type="{{ parent.account_type }}">{{ parent.name }}</option>
+                <option value="{{ parent.id }}" data-type="{{ parent.account_type }}">{{ parent.name|camelcase }}</option>
                 {% endfor %}
             {% endif %}
         </select>

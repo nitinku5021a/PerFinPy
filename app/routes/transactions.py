@@ -277,6 +277,15 @@ def new_account():
                 if parent.account_type != account_type:
                     raise ValueError('Parent account type must match selected account type')
 
+            # Duplicate name (case-insensitive) under same parent not allowed
+            q = Account.query.filter(db.func.lower(Account.name) == name.lower(), Account.account_type == account_type)
+            if parent_id_int is None:
+                q = q.filter(Account.parent_id.is_(None))
+            else:
+                q = q.filter(Account.parent_id == parent_id_int)
+            if q.first():
+                raise ValueError('An account with this name already exists under the same parent')
+
             from uuid import uuid4
             # parse opening_balance
             opening_balance_str = request.form.get('opening_balance', '').strip()
@@ -360,6 +369,15 @@ def edit_account(id):
             except ValueError:
                 raise ValueError('Invalid opening balance')
 
+            # Duplicate name (case-insensitive) under same parent not allowed (excluding self)
+            q = Account.query.filter(db.func.lower(Account.name) == name.lower(), Account.account_type == account_type, Account.id != account.id)
+            if parent_id_int is None:
+                q = q.filter(Account.parent_id.is_(None))
+            else:
+                q = q.filter(Account.parent_id == parent_id_int)
+            if q.first():
+                raise ValueError('An account with this name already exists under the same parent')
+
             # apply changes
             account.name = name
             account.account_type = account_type
@@ -383,9 +401,15 @@ def edit_account(id):
 def api_accounts():
     """API endpoint to get all accounts"""
     accounts = Account.query.filter_by(is_active=True).all()
+    def _camelcase(s):
+        if not s:
+            return ''
+        s = str(s).strip()
+        return ':'.join(p.strip().title() for p in s.split(':')) if ':' in s else s.title()
+
     return jsonify([{
         'id': acc.id,
-        'name': acc.name,
+        'name': _camelcase(acc.name),
         'type': acc.account_type
     } for acc in accounts])
 

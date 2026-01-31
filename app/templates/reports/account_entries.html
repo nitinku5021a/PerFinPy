@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Journal Entries - {{ account.name }} - Personal Finance Accounting{% endblock %}
+{% block title %}Journal Entries - {{ account.name|camelcase }} - Personal Finance Accounting{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Journal Entries for {{ account.name }}</h1>
+    <h1>Journal Entries for {{ account.name|camelcase }}</h1>
     <div class="report-period">
         {% include '_period_selector.html' %}
     </div>
@@ -30,7 +30,7 @@
             <tbody>
                 {% for line in entry.transaction_lines %}
                 <tr>
-                    <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name }}</td>
+                    <td{% if line.line_type == 'CREDIT' %} class="credit-line"{% endif %}>{{ line.account.name|camelcase }}</td>
                     <td>{{ line.line_type }}</td>
                     <td class="amount">{{ line.amount|inr }}</td>
                 </tr>
