@@ -63,68 +63,52 @@ def list_transactions():
 
 @bp.route('/new', methods=['GET', 'POST'])
 def new_transaction():
-    """Create new journal entry"""
+    """Create new journal entry (simplified: date, debit account, description, amount, credit account)."""
+    accounts = Account.query.filter_by(is_active=True).order_by(Account.name).all()
     if request.method == 'POST':
         try:
-            entry_date = datetime.strptime(request.form['entry_date'], '%Y-%m-%d')
-            description = request.form['description']
-            reference = request.form.get('reference', '')
-            notes = request.form.get('notes', '')
-            
-            # Create journal entry
+            entry_date = datetime.strptime(request.form.get('entry_date') or '', '%Y-%m-%d')
+            description = (request.form.get('description') or '').strip()
+            debit_account_id = request.form.get('debit_account_id')
+            credit_account_id = request.form.get('credit_account_id')
+            amount_str = request.form.get('amount', '0')
+            amount = abs(float(amount_str)) if amount_str else 0.0
+
+            if not description:
+                raise ValueError('Description is required')
+            if not debit_account_id or not credit_account_id:
+                raise ValueError('Debit and Credit accounts are required')
+            if amount <= 0:
+                raise ValueError('Amount must be greater than zero')
+            if int(debit_account_id) == int(credit_account_id):
+                raise ValueError('Debit and Credit must be different accounts')
+
             je = JournalEntry(
                 entry_date=entry_date,
                 description=description,
-                reference=reference,
-                notes=notes
+                reference='',
+                notes=''
             )
-            
             db.session.add(je)
-            db.session.flush()  # Get the ID
-            
-            # Add transaction lines
-            line_count_str = request.form.get('line_count', '0')
-            line_count = int(line_count_str) if line_count_str else 0
-            for i in range(line_count):
-                account_id = request.form.get(f'line_{i}_account_id')
-                line_type = request.form.get(f'line_{i}_type')
-                amount_str = request.form.get(f'line_{i}_amount', '0')
-                amount = float(amount_str) if amount_str else 0.0
-                line_desc = request.form.get(f'line_{i}_description', '')
-                
-                if account_id and amount != 0 and line_type:
-                    # Normalize negative amounts: flip type when amount is negative
-                    amt = abs(amount)
-                    lt = line_type.upper()
-                    if amount < 0:
-                        lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
-                    tl = TransactionLine(
-                        journal_entry_id=je.id,
-                        account_id=int(account_id),
-                        line_type=lt,
-                        amount=amt,
-                        date=entry_date,
-                        description=line_desc
-                    )
-                    db.session.add(tl)
-            
-            # Validate balanced entry
-            if not je.is_balanced():
-                db.session.rollback()
-                return render_template('transactions/new.html', 
-                                     accounts=Account.query.all(),
-                                     error='Journal entry must be balanced (debits = credits)')
-            
+            db.session.flush()
+
+            for account_id, line_type in [(debit_account_id, 'DEBIT'), (credit_account_id, 'CREDIT')]:
+                tl = TransactionLine(
+                    journal_entry_id=je.id,
+                    account_id=int(account_id),
+                    line_type=line_type,
+                    amount=amount,
+                    date=entry_date,
+                    description=''
+                )
+                db.session.add(tl)
+
             db.session.commit()
             return redirect(url_for('transactions.list_transactions'))
-        
         except Exception as e:
             db.session.rollback()
-            return render_template('transactions/new.html',
-                                 accounts=Account.query.all(),
-                                 error=str(e))
-    
-    accounts = Account.query.filter_by(is_active=True).all()
+            return render_template('transactions/new.html', accounts=accounts, error=str(e))
+
     return render_template('transactions/new.html', accounts=accounts)
 
 @bp.route('/<int:id>')

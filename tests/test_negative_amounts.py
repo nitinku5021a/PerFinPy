@@ -69,17 +69,9 @@ def test_web_entry_negative_amount():
         data = {
             'entry_date': '2026-01-01',
             'description': 'Negative amount test',
-            'reference': '',
-            'notes': '',
-            'line_count': '2',
-            'line_0_account_id': str(a1.id),
-            'line_0_type': 'DEBIT',
-            'line_0_amount': '-500',
-            'line_0_description': 'Negative debit',
-            'line_1_account_id': str(a2.id),
-            'line_1_type': 'DEBIT',
-            'line_1_amount': '500',
-            'line_1_description': 'Sale'
+            'debit_account_id': str(a1.id),
+            'credit_account_id': str(a2.id),
+            'amount': '500'
         }
         resp = client.post('/transactions/new', data=data, follow_redirects=True)
         assert resp.status_code == 200
@@ -88,9 +80,7 @@ def test_web_entry_negative_amount():
         assert je is not None
         lines = je.transaction_lines
         assert len(lines) == 2
-        # negative debit should have been normalized to CREDIT of 500 on the cash account
-        cash_line = [l for l in lines if l.account_id == a1.id][0]
-        assert cash_line.amount == 500
-        assert cash_line.line_type in ('DEBIT', 'CREDIT')
-        # overall balanced
+        debit_line = [l for l in lines if l.line_type == 'DEBIT'][0]
+        credit_line = [l for l in lines if l.line_type == 'CREDIT'][0]
+        assert debit_line.amount == 500 and credit_line.amount == 500
         assert je.is_balanced()

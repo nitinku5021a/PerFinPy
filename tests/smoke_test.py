@@ -38,21 +38,13 @@ with app.app_context():
     sales = Account.query.filter_by(name='Sales').first()
     print('Cash id:', cash.id if cash else None, 'Sales id:', sales.id if sales else None)
 
-    # Post new transaction
+    # Post new transaction (simplified form: date, debit, description, amount, credit)
     data = {
         'entry_date': '2026-01-01',
         'description': 'Test sale',
-        'reference': '',
-        'notes': '',
-        'line_count': '2',
-        'line_0_account_id': str(cash.id),
-        'line_0_type': 'DEBIT',
-        'line_0_amount': '100.00',
-        'line_0_description': 'Cash received',
-        'line_1_account_id': str(sales.id),
-        'line_1_type': 'CREDIT',
-        'line_1_amount': '100.00',
-        'line_1_description': 'Sale revenue'
+        'debit_account_id': str(cash.id),
+        'credit_account_id': str(sales.id),
+        'amount': '100.00'
     }
 
     resp4 = client.post('/transactions/new', data=data, follow_redirects=True)
