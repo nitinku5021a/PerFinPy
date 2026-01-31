@@ -37,16 +37,22 @@ def get_roots_for_type(account_type):
     return list(roots.values())
 
 
-def build_two_level_tree(parent_accounts, start_date, end_date):
-    """Build a two-level tree (parent -> children -> grandchildren) with balances for rendering."""
+def build_two_level_tree(parent_accounts, start_date, end_date, show_zero=False, tol=0.005):
+    """Build a two-level tree (parent -> children -> grandchildren) with balances for rendering.
+
+    If show_zero is False (default), accounts with balances whose absolute value <= tol will be omitted.
+    Parents are omitted only if they and all their descendants are effectively zero.
+    """
     accounts_with_balance = []
     for acc in parent_accounts:
+        # Compute parent balance
+        parent_balance = acc.get_group_balance(start_date, end_date) if acc.is_group() else acc.get_balance(start_date, end_date)
         account_data = {
             'account': acc,
-            'balance': acc.get_group_balance(start_date, end_date) if acc.is_group() else acc.get_balance(start_date, end_date),
+            'balance': parent_balance,
             'children': []
         }
-        # Add children and grandchildren
+        # Add children and grandchildren; skip zero balances when requested
         for child in acc.children:
             child_balance = child.get_group_balance(start_date, end_date) if child.is_group() else child.get_balance(start_date, end_date)
             child_data = {
@@ -56,12 +62,21 @@ def build_two_level_tree(parent_accounts, start_date, end_date):
             }
             for grandchild in child.children:
                 gc_balance = grandchild.get_group_balance(start_date, end_date) if grandchild.is_group() else grandchild.get_balance(start_date, end_date)
+                # Skip zero grandchildren if not showing zeros
+                if not show_zero and abs(gc_balance) <= tol:
+                    continue
                 gc_data = {
                     'account': grandchild,
                     'balance': gc_balance
                 }
                 child_data['children'].append(gc_data)
+            # Skip child if it's zero and has no non-zero grandchildren (unless show_zero)
+            if not show_zero and abs(child_balance) <= tol and len(child_data['children']) == 0:
+                continue
             account_data['children'].append(child_data)
+        # Skip parent if zero and no children left (unless show_zero)
+        if not show_zero and abs(parent_balance) <= tol and len(account_data['children']) == 0:
+            continue
         accounts_with_balance.append(account_data)
     return accounts_with_balance
 
@@ -77,10 +92,13 @@ def networth():
     liabilities = Account.query.filter_by(account_type='Liability', parent_id=None).all()
     equity = Account.query.filter_by(account_type='Equity', parent_id=None).all()
     
+    # Determine whether to show zero balances based on query parameter
+    show_zero = request.args.get('show_zero', '0') in ('1', 'true', 'True')
+
     # Build two-level trees for display
-    asset_accounts = build_two_level_tree(assets, start_date, end_date)
-    liability_accounts = build_two_level_tree(liabilities, start_date, end_date)
-    equity_accounts = build_two_level_tree(equity, start_date, end_date)
+    asset_accounts = build_two_level_tree(assets, start_date, end_date, show_zero=show_zero)
+    liability_accounts = build_two_level_tree(liabilities, start_date, end_date, show_zero=show_zero)
+    equity_accounts = build_two_level_tree(equity, start_date, end_date, show_zero=show_zero)
     
     # Calculate totals
     total_assets = sum(acc['balance'] for acc in asset_accounts)
@@ -107,6 +125,7 @@ def networth():
                          start_date=start_date,
                          end_date=end_date,
                          period=period,
+                         show_zero=show_zero,
                          abs=abs)
 
 @bp.route('/balance-sheet')
@@ -126,8 +145,10 @@ def income_statement():
     income_roots = get_roots_for_type('Income')
     expense_roots = get_roots_for_type('Expense')
 
-    income_accounts = build_two_level_tree(income_roots, start_date, end_date)
-    expense_accounts = build_two_level_tree(expense_roots, start_date, end_date)
+    show_zero = request.args.get('show_zero', '0') in ('1', 'true', 'True')
+
+    income_accounts = build_two_level_tree(income_roots, start_date, end_date, show_zero=show_zero)
+    expense_accounts = build_two_level_tree(expense_roots, start_date, end_date, show_zero=show_zero)
 
     # Totals: income are typically credit (use absolute value), expenses are debit
     total_income = sum(abs(item['balance']) for item in income_accounts)
@@ -144,6 +165,7 @@ def income_statement():
                          start_date=start_date,
                          end_date=end_date,
                          period=period,
+                         show_zero=show_zero,
                          abs=abs)
 
 def get_net_income(start_date=None, end_date=None):
