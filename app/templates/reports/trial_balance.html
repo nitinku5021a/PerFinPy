@@ -6,12 +6,7 @@
 <div class="page-header">
     <h1>Trial Balance</h1>
     <div class="report-period">
-        <label for="period">Period:</label>
-        <select id="period" onchange="window.location.href='?period=' + this.value">
-            <option value="all" {% if period == 'all' %}selected{% endif %}>All time</option>
-            <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
-            <option value="current_month" {% if period == 'current_month' %}selected{% endif %}>Current Month</option>
-        </select>
+        {% include '_period_selector.html' %}
     </div>
 </div>
 

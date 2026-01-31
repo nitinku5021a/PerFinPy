@@ -6,14 +6,9 @@
 <div class="page-header">
     <h1>Networth Statement</h1>
     <div class="report-period">
-        <label for="period">Period:</label>
-        <select id="period" onchange="window.location.href='?period=' + this.value + '&show_zero=' + (document.getElementById('show_zero') && document.getElementById('show_zero').checked ? '1' : '0')">
-            <option value="all" {% if period == 'all' %}selected{% endif %}>All time</option>
-            <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
-            <option value="current_month" {% if period == 'current_month' %}selected{% endif %}>Current Month</option>
-        </select>
-        <label style="margin-left: 10px; font-weight: normal;">
-            <input id="show_zero" type="checkbox" onchange="window.location.href='?period=' + (document.getElementById('period').value || 'all') + '&show_zero=' + (this.checked ? '1' : '0')" {% if show_zero %}checked{% endif %}> Show zero balances
+        {% include '_period_selector.html' %}
+        <label class="period-show-zero">
+            <input id="show_zero" type="checkbox" onchange="var u=new URL(window.location.href); u.searchParams.set('show_zero', this.checked?'1':'0'); window.location.href=u.toString();" {% if show_zero %}checked{% endif %}> Show zero balances
         </label>
     </div>
 </div>

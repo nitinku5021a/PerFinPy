@@ -59,7 +59,7 @@ def list_transactions():
     all_accounts = Account.query.order_by(Account.name).all()
     accounts_for_select = all_accounts
 
-    return render_template('transactions/list.html', entries=entries, period=period, account_id=account_id, accounts_for_select=accounts_for_select) 
+    return render_template('transactions/list.html', entries=entries, period=period, account_id=account_id, accounts_for_select=accounts_for_select, start_date=start_date, end_date=end_date) 
 
 @bp.route('/new', methods=['GET', 'POST'])
 def new_transaction():

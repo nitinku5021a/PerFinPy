@@ -5,6 +5,9 @@
 {% block content %}
 <div class="page-header">
     <h1>Journal Entries for {{ account.name }}</h1>
+    <div class="report-period">
+        {% include '_period_selector.html' %}
+    </div>
     <a href="{{ url_for('reports.networth', period=period) }}" class="btn btn-secondary">Back to Report</a>
 </div>
 
