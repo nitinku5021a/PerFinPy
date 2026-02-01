@@ -14,7 +14,7 @@
         <h3>Entry Information</h3>
         <dl>
             <dt>Date:</dt>
-            <dd>{{ entry.entry_date.strftime('%Y-%m-%d') }}</dd>
+            <dd>{{ entry.entry_date.strftime('%d-%b-%Y') }}</dd>
             <dt>Description:</dt>
             <dd>{{ entry.description }}</dd>
             {% if entry.reference %}

@@ -146,15 +146,16 @@ def parse_transaction_row(row, row_num):
         if isinstance(row[0], (datetime, date_type)):
             entry_date = row[0].date() if hasattr(row[0], 'date') else row[0]
         else:
-            # Try to parse as string in DD-MM-YYYY format
+            # Try to parse as string with explicit day-first handling to avoid MM-DD-YYYY confusion
             date_str = str(row[0]).strip()
             try:
-                entry_date = datetime.strptime(date_str, '%d-%m-%Y').date()
-            except ValueError:
-                # Try YYYY-MM-DD format (ISO)
+                from dateutil import parser as _parser
+                entry_date = _parser.parse(date_str, dayfirst=True).date()
+            except Exception:
+                # Try YYYY-MM-DD format (ISO) as a fallback
                 try:
                     entry_date = datetime.strptime(date_str.split()[0], '%Y-%m-%d').date()
-                except ValueError:
+                except Exception:
                     raise ValueError(f"Invalid date format '{date_str}'. Expected DD-MM-YYYY or YYYY-MM-DD")
         
         # Parse amount (allow negative amounts as reversals)
@@ -271,10 +272,10 @@ def import_transactions_from_excel(file_stream):
             # Skip empty rows
             if not row or not any(row):
                 continue
-            
+
             try:
                 entry_date, debit_account, description, amount, credit_account = parse_transaction_row(row, row_idx)
-                
+
                 # Create journal entry
                 je = JournalEntry(
                     entry_date=entry_date,
@@ -282,7 +283,7 @@ def import_transactions_from_excel(file_stream):
                 )
                 db.session.add(je)
                 db.session.flush()
-                
+
                 # Normalize negative amount: if amount < 0, treat as reversal (swap debit/credit roles)
                 if amount < 0:
                     amount = abs(amount)
@@ -302,7 +303,7 @@ def import_transactions_from_excel(file_stream):
                     description=description
                 )
                 db.session.add(debit_line)
-                
+
                 # Create credit line
                 credit_line = TransactionLine(
                     journal_entry_id=je.id,
@@ -313,11 +314,11 @@ def import_transactions_from_excel(file_stream):
                     description=description
                 )
                 db.session.add(credit_line)
-                
+
                 db.session.flush()
                 results['success'] += 1
                 rows_processed += 1
-                
+
             except Exception as e:
                 results['errors'].append(str(e))
                 db.session.rollback()

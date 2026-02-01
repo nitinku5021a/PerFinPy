@@ -155,30 +155,55 @@ def edit_transaction(id):
                 db.session.delete(l)
             db.session.flush()
 
-            # Recreate lines from form
-            line_count_str = request.form.get('line_count', '0')
-            line_count = int(line_count_str) if line_count_str else 0
-            for i in range(line_count):
-                account_id = request.form.get(f'line_{i}_account_id')
-                line_type = request.form.get(f'line_{i}_type')
-                amount_str = request.form.get(f'line_{i}_amount', '0')
-                amount = float(amount_str) if amount_str else 0.0
-                line_desc = request.form.get(f'line_{i}_description', '')
-
-                if account_id and amount != 0 and line_type:
-                    amt = abs(amount)
-                    lt = line_type.upper()
-                    if amount < 0:
-                        lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
+            # Check if simplified form (debit_account_id, credit_account_id, amount) is used
+            debit_account_id = request.form.get('debit_account_id')
+            credit_account_id = request.form.get('credit_account_id')
+            
+            if debit_account_id and credit_account_id:
+                # Simplified form: create two lines
+                amount_str = request.form.get('amount', '0')
+                amount = abs(float(amount_str)) if amount_str else 0.0
+                
+                if int(debit_account_id) == int(credit_account_id):
+                    raise ValueError('Debit and Credit must be different accounts')
+                if amount <= 0:
+                    raise ValueError('Amount must be greater than zero')
+                
+                for account_id, line_type in [(debit_account_id, 'DEBIT'), (credit_account_id, 'CREDIT')]:
                     tl = TransactionLine(
                         journal_entry_id=entry.id,
                         account_id=int(account_id),
-                        line_type=lt,
-                        amount=amt,
+                        line_type=line_type,
+                        amount=amount,
                         date=entry.entry_date,
-                        description=line_desc
+                        description=entry.description
                     )
                     db.session.add(tl)
+            else:
+                # Multi-line form: legacy support
+                line_count_str = request.form.get('line_count', '0')
+                line_count = int(line_count_str) if line_count_str else 0
+                for i in range(line_count):
+                    account_id = request.form.get(f'line_{i}_account_id')
+                    line_type = request.form.get(f'line_{i}_type')
+                    amount_str = request.form.get(f'line_{i}_amount', '0')
+                    amount = float(amount_str) if amount_str else 0.0
+                    line_desc = request.form.get(f'line_{i}_description', '')
+
+                    if account_id and amount != 0 and line_type:
+                        amt = abs(amount)
+                        lt = line_type.upper()
+                        if amount < 0:
+                            lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
+                        tl = TransactionLine(
+                            journal_entry_id=entry.id,
+                            account_id=int(account_id),
+                            line_type=lt,
+                            amount=amt,
+                            date=entry.entry_date,
+                            description=line_desc
+                        )
+                        db.session.add(tl)
 
             # Validate balanced entry
             if not entry.is_balanced():
