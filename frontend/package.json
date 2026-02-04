@@ -1,0 +1,20 @@
+{
+  "name": "perfinpy-sveltekit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "svelte-kit sync && vite dev",
+    "build": "svelte-kit sync && vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "3.2.3",
+    "@sveltejs/kit": "2.6.4",
+    "@sveltejs/vite-plugin-svelte": "3.1.2",
+    "svelte": "4.2.18",
+    "vite": "5.4.6",
+    "svelte-check": "4.0.4"
+  }
+}

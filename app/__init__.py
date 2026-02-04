@@ -10,50 +10,27 @@ def create_app(config_class=Config):
     
     db.init_app(app)
 
-    # Formatter for Indian number grouping (lakhs, crores) - rounds to integer and formats with commas
-    def format_inr(value):
-        try:
-            n = int(round(float(value)))
-        except Exception:
-            return value or ''
-        sign = '-' if n < 0 else ''
-        n = abs(n)
-        s = str(n)
-        if len(s) <= 3:
-            return sign + s
-        last3 = s[-3:]
-        rest = s[:-3]
-        parts = []
-        while len(rest) > 2:
-            parts.insert(0, rest[-2:])
-            rest = rest[:-2]
-        if rest:
-            parts.insert(0, rest)
-        formatted = ','.join(parts) + ',' + last3
-        return sign + formatted
-
-    def camelcase(s):
-        """Display string in CamelCase (title case). For paths like 'Parent:Child', title each segment."""
-        if s is None:
-            return ''
-        s = str(s).strip()
-        if not s:
-            return ''
-        if ':' in s:
-            return ':'.join((p.strip().title() for p in s.split(':')))
-        return s.title()
-
-    # Register jinja filters
-    app.jinja_env.filters['inr'] = format_inr
-    app.jinja_env.filters['abs'] = abs
-    app.jinja_env.filters['camelcase'] = camelcase
-    
     with app.app_context():
         # Import models
-        from app.models import Account, JournalEntry, TransactionLine
+        from app.models import Account, JournalEntry, TransactionLine, DailyAccountBalance, MonthlyNetWorth, MonthlyPnL
         
         # Create tables
         db.create_all()
+
+        # Register snapshot listeners
+        from app.services import snapshots_service
+        snapshots_service.register_snapshot_listeners(db)
+
+        # Auto-backfill snapshots if transactions exist but snapshots are missing
+        try:
+            has_transactions = db.session.query(TransactionLine.id).first() is not None
+            has_daily = db.session.query(DailyAccountBalance.id).first() is not None
+            has_monthly_nw = db.session.query(MonthlyNetWorth.id).first() is not None
+            has_monthly_pnl = db.session.query(MonthlyPnL.id).first() is not None
+            if has_transactions and not (has_daily and has_monthly_nw and has_monthly_pnl):
+                snapshots_service.backfill_snapshots(db.session)
+        except Exception:
+            db.session.rollback()
     
     # Register blueprints
     from app.routes import main, transactions, reports

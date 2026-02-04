@@ -5,6 +5,7 @@ Supports hierarchical account format: "TopLevel:MiddleLevel:Account"
 from datetime import datetime, date
 from app import db
 from app.models import Account, JournalEntry, TransactionLine, AccountType
+from app.services import snapshots_service
 
 
 def parse_account_path(path_str, account_type):
@@ -325,6 +326,8 @@ def import_transactions_from_excel(file_stream):
         
         if results['success'] > 0:
             db.session.commit()
+            # After bulk import, rebuild snapshots to guarantee consistency
+            snapshots_service.backfill_snapshots(db.session)
         
         results['total_rows'] = rows_processed
         

@@ -1,8 +1,5 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
-from datetime import datetime
-from app import db
-from app.models import Account, JournalEntry, TransactionLine, AccountType
-from app.utils.excel_import import import_transactions_from_excel
+from flask import Blueprint, jsonify, request, redirect, url_for, flash, send_file
+from app.services import transactions_service
 
 bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
@@ -15,401 +12,85 @@ def list_transactions():
     period = request.args.get('period', 'current_month')
     account_id = request.args.get('account_id', type=int)
 
-    # Reuse period parsing from reports
-    try:
-        from app.routes.reports import get_period_dates
-        start_date, end_date = get_period_dates(period)
-    except Exception:
-        start_date, end_date = (None, None)
-
-    q = JournalEntry.query
-
-    # If filtering by account or period, prefer filtering by TransactionLine.date
-    # so the behavior matches the drill-down reports (which are transaction-line date based).
-    needs_line_join = False
-
-    if account_id:
-        account = Account.query.get(account_id)
-        if account:
-            descendant_ids = [a.id for a in account.get_all_descendants()] + [account.id]
-            q = q.join(TransactionLine).filter(TransactionLine.account_id.in_(descendant_ids))
-            needs_line_join = True
-        else:
-            q = q.join(TransactionLine).filter(TransactionLine.account_id == account_id)
-            needs_line_join = True
-
-    # If a date range is present, filter by TransactionLine.date (not JournalEntry.entry_date)
-    if start_date or end_date:
-        if not needs_line_join:
-            q = q.join(TransactionLine)
-            needs_line_join = True
-        if start_date:
-            q = q.filter(TransactionLine.date >= start_date)
-        if end_date:
-            q = q.filter(TransactionLine.date <= end_date)
-
-    q = q.order_by(JournalEntry.entry_date.desc())
-    if needs_line_join:
-        # distinct to avoid duplicates when joining
-        q = q.distinct()
-
-    entries = q.paginate(page=page, per_page=20)
-
-    # Provide accounts list for the account-based filter (allow group or leaf selection)
-    all_accounts = Account.query.order_by(Account.name).all()
-    accounts_for_select = all_accounts
-
-    return render_template('transactions/list.html', entries=entries, period=period, account_id=account_id, accounts_for_select=accounts_for_select, start_date=start_date, end_date=end_date) 
+    payload = transactions_service.list_transactions(page, period, account_id)
+    return jsonify(payload) 
 
 @bp.route('/new', methods=['GET', 'POST'])
 def new_transaction():
     """Create new journal entry (simplified: date, debit account, description, amount, credit account)."""
-    accounts = Account.query.filter_by(is_active=True).order_by(Account.name).all()
     if request.method == 'POST':
         try:
-            entry_date = datetime.strptime(request.form.get('entry_date') or '', '%Y-%m-%d')
-            description = (request.form.get('description') or '').strip()
-            debit_account_id = request.form.get('debit_account_id')
-            credit_account_id = request.form.get('credit_account_id')
-            amount_str = request.form.get('amount', '0')
-            amount = abs(float(amount_str)) if amount_str else 0.0
-
-            if not description:
-                raise ValueError('Description is required')
-            if not debit_account_id or not credit_account_id:
-                raise ValueError('Debit and Credit accounts are required')
-            if amount <= 0:
-                raise ValueError('Amount must be greater than zero')
-            if int(debit_account_id) == int(credit_account_id):
-                raise ValueError('Debit and Credit must be different accounts')
-
-            je = JournalEntry(
-                entry_date=entry_date,
-                description=description,
-                reference='',
-                notes=''
-            )
-            db.session.add(je)
-            db.session.flush()
-
-            for account_id, line_type in [(debit_account_id, 'DEBIT'), (credit_account_id, 'CREDIT')]:
-                tl = TransactionLine(
-                    journal_entry_id=je.id,
-                    account_id=int(account_id),
-                    line_type=line_type,
-                    amount=amount,
-                    date=entry_date,
-                    description=''
-                )
-                db.session.add(tl)
-
-            db.session.commit()
+            transactions_service.create_transaction(request.form)
             return redirect(url_for('transactions.list_transactions'))
         except Exception as e:
-            db.session.rollback()
-            return render_template('transactions/new.html', accounts=accounts, error=str(e))
+            payload = transactions_service.get_new_transaction_form_data()
+            payload['error'] = str(e)
+            return jsonify(payload)
 
-    return render_template('transactions/new.html', accounts=accounts)
+    return jsonify(transactions_service.get_new_transaction_form_data())
 
 @bp.route('/<int:id>')
 def view_transaction(id):
     """View journal entry details"""
-    entry = JournalEntry.query.get_or_404(id)
-    return render_template('transactions/view.html', entry=entry)
+    return jsonify(transactions_service.get_transaction_view(id))
 
 @bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_transaction(id):
     """Edit existing journal entry and record an edit log"""
-    entry = JournalEntry.query.get_or_404(id)
-
     if request.method == 'POST':
         try:
-            import json
-            # capture old state
-            old_state = {
-                'entry': {
-                    'entry_date': entry.entry_date.isoformat(),
-                    'description': entry.description,
-                    'reference': entry.reference,
-                    'notes': entry.notes
-                },
-                'lines': [
-                    {
-                        'account_id': l.account_id,
-                        'line_type': l.line_type,
-                        'amount': l.amount,
-                        'description': l.description,
-                        'date': l.date.isoformat()
-                    } for l in entry.transaction_lines
-                ]
-            }
-
-            # Update entry fields
-            entry.entry_date = datetime.strptime(request.form['entry_date'], '%Y-%m-%d').date()
-            entry.description = request.form['description']
-            entry.reference = request.form.get('reference', '')
-            entry.notes = request.form.get('notes', '')
-
-            # Remove existing lines
-            for l in list(entry.transaction_lines):
-                db.session.delete(l)
-            db.session.flush()
-
-            # Check if simplified form (debit_account_id, credit_account_id, amount) is used
-            debit_account_id = request.form.get('debit_account_id')
-            credit_account_id = request.form.get('credit_account_id')
-            
-            if debit_account_id and credit_account_id:
-                # Simplified form: create two lines
-                amount_str = request.form.get('amount', '0')
-                amount = abs(float(amount_str)) if amount_str else 0.0
-                
-                if int(debit_account_id) == int(credit_account_id):
-                    raise ValueError('Debit and Credit must be different accounts')
-                if amount <= 0:
-                    raise ValueError('Amount must be greater than zero')
-                
-                for account_id, line_type in [(debit_account_id, 'DEBIT'), (credit_account_id, 'CREDIT')]:
-                    tl = TransactionLine(
-                        journal_entry_id=entry.id,
-                        account_id=int(account_id),
-                        line_type=line_type,
-                        amount=amount,
-                        date=entry.entry_date,
-                        description=entry.description
-                    )
-                    db.session.add(tl)
-            else:
-                # Multi-line form: legacy support
-                line_count_str = request.form.get('line_count', '0')
-                line_count = int(line_count_str) if line_count_str else 0
-                for i in range(line_count):
-                    account_id = request.form.get(f'line_{i}_account_id')
-                    line_type = request.form.get(f'line_{i}_type')
-                    amount_str = request.form.get(f'line_{i}_amount', '0')
-                    amount = float(amount_str) if amount_str else 0.0
-                    line_desc = request.form.get(f'line_{i}_description', '')
-
-                    if account_id and amount != 0 and line_type:
-                        amt = abs(amount)
-                        lt = line_type.upper()
-                        if amount < 0:
-                            lt = 'CREDIT' if lt == 'DEBIT' else 'DEBIT'
-                        tl = TransactionLine(
-                            journal_entry_id=entry.id,
-                            account_id=int(account_id),
-                            line_type=lt,
-                            amount=amt,
-                            date=entry.entry_date,
-                            description=line_desc
-                        )
-                        db.session.add(tl)
-
-            # Validate balanced entry
-            if not entry.is_balanced():
-                db.session.rollback()
-                return render_template('transactions/edit.html', entry=entry, accounts=Account.query.filter_by(is_active=True).all(), error='Journal entry must be balanced (debits = credits)')
-
-            # capture new state
-            new_state = {
-                'entry': {
-                    'entry_date': entry.entry_date.isoformat(),
-                    'description': entry.description,
-                    'reference': entry.reference,
-                    'notes': entry.notes
-                },
-                'lines': [
-                    {
-                        'account_id': l.account_id,
-                        'line_type': l.line_type,
-                        'amount': l.amount,
-                        'description': l.description,
-                        'date': l.date.isoformat()
-                    } for l in entry.transaction_lines
-                ]
-            }
-
-            # create edit log
-            from app.models import JournalEntryEditLog
-            log = JournalEntryEditLog(
-                journal_entry_id=entry.id,
-                editor=request.remote_addr or 'web',
-                change_summary=f"Edited via web",
-                old_data=json.dumps(old_state),
-                new_data=json.dumps(new_state)
-            )
-            db.session.add(log)
-
-            db.session.commit()
-            return redirect(url_for('transactions.view_transaction', id=entry.id))
+            result = transactions_service.update_transaction(id, {
+                **request.form,
+                'editor': request.remote_addr or 'web'
+            })
+            return redirect(url_for('transactions.view_transaction', id=result['entry_id']))
 
         except Exception as e:
-            db.session.rollback()
-            return render_template('transactions/edit.html', entry=entry, accounts=Account.query.filter_by(is_active=True).all(), error=str(e))
+            payload = transactions_service.get_edit_transaction_form_data(id)
+            payload['error'] = str(e)
+            return jsonify(payload)
 
     # GET
-    accounts = Account.query.filter_by(is_active=True).all()
-    return render_template('transactions/edit.html', entry=entry, accounts=accounts)
+    return jsonify(transactions_service.get_edit_transaction_form_data(id))
 
 @bp.route('/accounts')
 def list_accounts():
     """List chart of accounts"""
-    accounts = Account.query.order_by(Account.name).all()
-    return render_template('transactions/accounts.html', accounts=accounts)
+    return jsonify(transactions_service.list_accounts_data())
 
 @bp.route('/accounts/new', methods=['GET', 'POST'])
 def new_account():
     """Create new account"""
     if request.method == 'POST':
         try:
-            name = request.form.get('name', '').strip()
-            account_type = request.form.get('account_type', '').strip()
-            parent_id = request.form.get('parent_id')
-
-            # Validate required fields
-            if not name:
-                raise ValueError('Account name is required')
-            if not account_type:
-                raise ValueError('Account type is required')
-
-            # Validate account_type value
-            valid_types = [t.value for t in AccountType]
-            if account_type not in valid_types:
-                raise ValueError('Invalid account type')
-
-            # If parent supplied, ensure it exists and has same account_type
-            parent_id_int = int(parent_id) if parent_id else None
-            if parent_id_int:
-                parent = Account.query.get(parent_id_int)
-                if not parent:
-                    raise ValueError('Selected parent account not found')
-                if parent.account_type != account_type:
-                    raise ValueError('Parent account type must match selected account type')
-
-            # Duplicate name (case-insensitive) under same parent not allowed
-            q = Account.query.filter(db.func.lower(Account.name) == name.lower(), Account.account_type == account_type)
-            if parent_id_int is None:
-                q = q.filter(Account.parent_id.is_(None))
-            else:
-                q = q.filter(Account.parent_id == parent_id_int)
-            if q.first():
-                raise ValueError('An account with this name already exists under the same parent')
-
-            from uuid import uuid4
-            # parse opening_balance
-            opening_balance_str = request.form.get('opening_balance', '').strip()
-            try:
-                opening_balance = float(opening_balance_str) if opening_balance_str else 0.0
-            except ValueError:
-                raise ValueError('Invalid opening balance')
-
-            account = Account(
-                code=f"__auto__{uuid4().hex[:8]}",
-                name=name,
-                account_type=account_type,
-                description=request.form.get('description', ''),
-                parent_id=parent_id_int,
-                opening_balance=opening_balance
-            )
-            db.session.add(account)
-            db.session.commit()
+            transactions_service.create_account(request.form)
             return redirect(url_for('transactions.list_accounts'))
         except Exception as e:
-            db.session.rollback()
-            parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
-            account_types = [t.value for t in AccountType]
-            return render_template('transactions/new_account.html', error=str(e), parent_accounts=parent_accounts, account_types=account_types)
-    
-    account_types = [t.value for t in AccountType]
-    parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
-    return render_template('transactions/new_account.html', account_types=account_types, parent_accounts=parent_accounts)
+            payload = transactions_service.get_new_account_form_data()
+            payload['error'] = str(e)
+            return jsonify(payload)
+
+    return jsonify(transactions_service.get_new_account_form_data())
 
 
 @bp.route('/accounts/<int:id>/edit', methods=['GET', 'POST'])
 def edit_account(id):
     """Edit existing account (name, type, parent, description) with strict validation on type changes"""
-    account = Account.query.get_or_404(id)
-
     if request.method == 'POST':
         try:
-            name = request.form.get('name', '').strip()
-            account_type = request.form.get('account_type', '').strip()
-            parent_id = request.form.get('parent_id')
-            description = request.form.get('description', '')
-
-            if not name:
-                raise ValueError('Account name is required')
-            if not account_type:
-                raise ValueError('Account type is required')
-            valid_types = [t.value for t in AccountType]
-            if account_type not in valid_types:
-                raise ValueError('Invalid account type')
-
-            parent_id_int = int(parent_id) if parent_id else None
-            # prevent cycles: parent cannot be self or descendant
-            if parent_id_int:
-                if parent_id_int == account.id:
-                    raise ValueError('Parent cannot be the account itself')
-                descendants = account.get_all_descendants()
-                if any(d.id == parent_id_int for d in descendants):
-                    raise ValueError('Parent cannot be a descendant of the account')
-                parent = Account.query.get(parent_id_int)
-                if not parent:
-                    raise ValueError('Selected parent account not found')
-                if parent.account_type != account_type:
-                    raise ValueError('Parent account type must match selected account type')
-
-            # If changing type, ensure no transactions exist in subtree; if safe, cascade new type to descendants
-            if account_type != account.account_type:
-                subtree = [account] + account.get_all_descendants()
-                subtree_ids = [a.id for a in subtree]
-                from app.models import TransactionLine as TL
-                tl_count = TL.query.filter(TL.account_id.in_(subtree_ids)).count()
-                if tl_count > 0:
-                    raise ValueError('Cannot change account type: account or descendants have transactions')
-                # cascade change
-                for a in subtree:
-                    a.account_type = account_type
-
-            # parse opening_balance
-            opening_balance_str = request.form.get('opening_balance', '').strip()
-            try:
-                opening_balance = float(opening_balance_str) if opening_balance_str else 0.0
-            except ValueError:
-                raise ValueError('Invalid opening balance')
-
-            # Duplicate name (case-insensitive) under same parent not allowed (excluding self)
-            q = Account.query.filter(db.func.lower(Account.name) == name.lower(), Account.account_type == account_type, Account.id != account.id)
-            if parent_id_int is None:
-                q = q.filter(Account.parent_id.is_(None))
-            else:
-                q = q.filter(Account.parent_id == parent_id_int)
-            if q.first():
-                raise ValueError('An account with this name already exists under the same parent')
-
-            # apply changes
-            account.name = name
-            account.account_type = account_type
-            account.parent_id = parent_id_int
-            account.description = description
-            account.opening_balance = opening_balance
-
-            db.session.commit()
+            transactions_service.edit_account(id, request.form)
             return redirect(url_for('transactions.list_accounts'))
         except Exception as e:
-            db.session.rollback()
-            account_types = [t.value for t in AccountType]
-            parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
-            return render_template('transactions/edit_account.html', account=account, account_types=account_types, parent_accounts=parent_accounts, error=str(e))
+            payload = transactions_service.get_edit_account_form_data(id)
+            payload['error'] = str(e)
+            return jsonify(payload)
 
-    account_types = [t.value for t in AccountType]
-    parent_accounts = Account.query.filter(Account.parent_id.is_(None)).order_by(Account.name).all()
-    return render_template('transactions/edit_account.html', account=account, account_types=account_types, parent_accounts=parent_accounts)
+    return jsonify(transactions_service.get_edit_account_form_data(id))
 
 @bp.route('/api/accounts')
 def api_accounts():
     """API endpoint to get all accounts"""
-    accounts = Account.query.filter_by(is_active=True).all()
+    accounts = transactions_service.list_accounts_data()['accounts']
     def _camelcase(s):
         if not s:
             return ''
@@ -417,9 +98,9 @@ def api_accounts():
         return ':'.join(p.strip().title() for p in s.split(':')) if ':' in s else s.title()
 
     return jsonify([{
-        'id': acc.id,
-        'name': _camelcase(acc.name),
-        'type': acc.account_type
+        'id': acc['id'],
+        'name': _camelcase(acc['name']),
+        'type': acc['account_type']
     } for acc in accounts])
 
 @bp.route('/import', methods=['GET', 'POST'])
@@ -427,22 +108,9 @@ def import_transactions():
     """Import transactions from Excel file"""
     if request.method == 'POST':
         try:
-            if 'file' not in request.files:
-                flash('No file selected', 'error')
-                return redirect(url_for('transactions.import_transactions'))
-            
-            file = request.files['file']
-            if file.filename == '':
-                flash('No file selected', 'error')
-                return redirect(url_for('transactions.import_transactions'))
-            
-            if not file.filename.endswith(('.xlsx', '.xls')):
-                flash('File must be Excel format (.xlsx or .xls)', 'error')
-                return redirect(url_for('transactions.import_transactions'))
-            
-            # Process the file
-            results = import_transactions_from_excel(file.stream)
-            
+            file = request.files.get('file')
+            results = transactions_service.import_transactions(file)
+
             if results['errors']:
                 error_msg = f"Import completed with {results['success']} successful. Errors:\n" + "\n".join(results['errors'][:10])
                 if len(results['errors']) > 10:
@@ -450,70 +118,27 @@ def import_transactions():
                 flash(error_msg, 'warning')
             else:
                 flash(f"Successfully imported {results['success']} transactions!", 'success')
-            
-            return render_template('transactions/import.html', results=results)
+
+            return jsonify({
+                'page': 'transactions_import',
+                'results': results
+            })
         
         except Exception as e:
             flash(f"Error processing file: {str(e)}", 'error')
             return redirect(url_for('transactions.import_transactions'))
     
-    return render_template('transactions/import.html')
+    return jsonify({
+        'page': 'transactions_import'
+    })
 
 
 @bp.route('/export')
 def export_transactions():
     """Export transactions to Excel in importer-friendly format: Date, Debit Account, Description, Amount, Credit Account"""
-    from io import BytesIO
-    from openpyxl import Workbook
-    from flask import send_file
     # Optional period filter
     period = request.args.get('period', 'all')
-    try:
-        from app.routes.reports import get_period_dates
-        start_date, end_date = get_period_dates(period)
-    except Exception:
-        start_date, end_date = (None, None)
-
-    q = JournalEntry.query.order_by(JournalEntry.entry_date.asc())
-    if start_date:
-        q = q.filter(JournalEntry.entry_date >= start_date)
-    if end_date:
-        q = q.filter(JournalEntry.entry_date <= end_date)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = 'Transactions'
-    ws.append(['Date', 'Debit Account', 'Description', 'Amount', 'Credit Account'])
-
-    complex_ws = wb.create_sheet('Complex Entries')
-    complex_ws.append(['JE ID', 'Date', 'Description', 'Account Path', 'Type', 'Amount'])
-
-    # Accounts sheet with opening balances to allow round-trip import/export
-    accounts_ws = wb.create_sheet('Accounts')
-    accounts_ws.append(['Account Path', 'Opening Balance', 'Account Type', 'Code', 'Description'])
-    from app.models import Account
-    # Order accounts predictably by type and path
-    accounts = Account.query.order_by(Account.account_type.asc(), Account.parent_id.asc(), Account.name.asc()).all()
-
-    for a in accounts:
-        accounts_ws.append([a.get_export_path(), a.opening_balance or 0.0, a.account_type, a.code or '', a.description or ''])
-
-    for je in q.all():
-        debit_lines = [l for l in je.transaction_lines if (l.line_type or '').upper() == 'DEBIT']
-        credit_lines = [l for l in je.transaction_lines if (l.line_type or '').upper() == 'CREDIT']
-
-        if len(debit_lines) == 1 and len(credit_lines) == 1:
-            d = debit_lines[0]
-            c = credit_lines[0]
-            ws.append([je.entry_date.strftime('%d-%m-%Y'), d.account.get_export_path(), je.description or '', d.amount, c.account.get_export_path()])
-        else:
-            for l in je.transaction_lines:
-                complex_ws.append([je.id, je.entry_date.strftime('%d-%m-%Y'), je.description or '', l.account.get_export_path(), l.line_type, l.amount])
-
-    stream = BytesIO()
-    wb.save(stream)
-    stream.seek(0)
-
+    stream = transactions_service.export_transactions(period)
     return send_file(stream,
                      download_name='transactions_export.xlsx',
                      as_attachment=True,
