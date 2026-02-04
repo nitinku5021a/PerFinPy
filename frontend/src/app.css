@@ -383,6 +383,16 @@ a:hover {
   font-variant-numeric: tabular-nums;
 }
 
+.drill-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.drill-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+
 .meta {
   color: var(--muted);
   font-size: 11.5px;

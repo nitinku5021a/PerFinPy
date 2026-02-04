@@ -109,6 +109,7 @@
   groups={filteredGroups}
   {months}
   formatValue={formatInr}
+  drillMode="upto"
   networthLabel="NETWORTH"
   networthByMonth={(() => {
     const assets = data?.find((g) => g.group === "Assets");

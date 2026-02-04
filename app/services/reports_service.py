@@ -331,6 +331,7 @@ def networth_matrix_report(start_month_str=None):
             leaf_accounts = descendants if descendants else [root]
             parent_payload = {
                 'name': name_by_id[root.id],
+                'account_id': root.id,
                 'accounts': [],
                 'monthly_balances': {}
             }
@@ -342,6 +343,7 @@ def networth_matrix_report(start_month_str=None):
                 }
                 parent_payload['accounts'].append({
                     'name': name_by_id[acc.id].split(':')[-1],
+                    'account_id': acc.id,
                     'monthly_balances': acc_monthly
                 })
 
@@ -436,9 +438,10 @@ def income_matrix_report(start_month_str=None):
 
         for root in sorted(roots, key=lambda a: name_by_id[a.id].lower()):
             descendants = root.get_all_descendants()
-            leaf_accounts = descendants if descendants else []
+            leaf_accounts = descendants if descendants else [root]
             parent_payload = {
                 'name': name_by_id[root.id],
+                'account_id': root.id,
                 'accounts': [],
                 'monthly_balances': {}
             }
@@ -452,6 +455,7 @@ def income_matrix_report(start_month_str=None):
                     acc_monthly[m] = val
                 parent_payload['accounts'].append({
                     'name': name_by_id[acc.id].split(':')[-1],
+                    'account_id': acc.id,
                     'monthly_balances': acc_monthly
                 })
 

@@ -1,59 +1,75 @@
 <script>
   import { onMount } from "svelte";
   import { apiGet } from "$lib/api";
-  import Table from "$lib/components/Table.svelte";
   import { toPeriodParam } from "$lib/period";
+  import Table from "$lib/components/Table.svelte";
   import { page } from "$app/stores";
+  import { formatInr } from "$lib/format";
 
-  let accounts = [];
+  let data = null;
   let accountId = "";
-  let period = "ytd";
+  let period = "all";
   let startDate = "";
   let endDate = "";
-  let data = null;
   let error = "";
   let ready = false;
 
-  async function loadAccounts() {
-    const res = await apiGet("/transactions/accounts");
-    accounts = res.accounts || [];
-    if (!accountId && accounts.length > 0) {
-      accountId = String(accounts[0].id);
+  const columns = [
+    { header: "Date", render: (row) => row.entry_date },
+    { header: "Debit Account", render: (row) => row.debit_account },
+    { header: "Amount", render: (row) => formatInr(row.amount), align: "right" },
+    { header: "Description", render: (row) => row.description },
+    { header: "Credit Account", render: (row) => row.credit_account }
+  ];
+
+  function setPeriodForMode(mode, endParam, monthParam) {
+    if (mode === "upto" && endParam) {
+      period = "custom";
+      startDate = "1900-01-01";
+      endDate = endParam;
+      return;
     }
+    if (mode === "month" && monthParam) {
+      const [y, m] = monthParam.split("-");
+      const start = new Date(Number(y), Number(m) - 1, 1);
+      const end = new Date(Number(y), Number(m), 0);
+      period = "custom";
+      startDate = start.toISOString().slice(0, 10);
+      endDate = end.toISOString().slice(0, 10);
+      return;
+    }
+    period = "all";
+    startDate = "";
+    endDate = "";
   }
 
-  async function loadEntries() {
-    if (!accountId) return;
-    const p = toPeriodParam(period, startDate, endDate);
-    data = await apiGet(`/reports/accounts/${accountId}/entries?period=${p}`);
+  async function load(pageNum = 1) {
+    try {
+      error = "";
+      const params = new URLSearchParams();
+      params.set("period", toPeriodParam(period, startDate, endDate));
+      if (accountId) params.set("account_id", accountId);
+      params.set("page", String(pageNum));
+      data = await apiGet(`/transactions?${params.toString()}`);
+    } catch (err) {
+      error = err.message || "Failed to load.";
+    }
   }
 
   onMount(async () => {
     ready = true;
-    try {
-      const qs = $page.url.searchParams;
-      const qsAccount = qs.get("account_id");
-      const qsPeriod = qs.get("period");
-      if (qsAccount) accountId = qsAccount;
-      if (qsPeriod) {
-        if (qsPeriod.startsWith("custom_")) {
-          period = "custom";
-          const parts = qsPeriod.split("_");
-          if (parts.length >= 3) {
-            const s = parts[1];
-            const e = parts[2];
-            startDate = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
-            endDate = `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}`;
-          }
-        } else {
-          period = qsPeriod;
-        }
-      }
-      await loadAccounts();
-      await loadEntries();
-    } catch (err) {
-      error = err.message || "Failed to load.";
+    const qs = $page.url.searchParams;
+    const qsAccount = qs.get("account_id");
+    const qsMode = qs.get("mode");
+    const qsEnd = qs.get("end");
+    const qsMonth = qs.get("month");
+
+    if (qsAccount) {
+      accountId = qsAccount;
     }
+    setPeriodForMode(qsMode, qsEnd, qsMonth);
+
+    await load(1);
   });
 
   $: if (ready) {
@@ -61,15 +77,8 @@
     period;
     startDate;
     endDate;
-    loadEntries().catch((err) => (error = err.message || "Failed to load."));
+    load(1);
   }
-
-  const columns = [
-    { header: "ID", render: (row) => row.id },
-    { header: "Date", render: (row) => row.entry_date },
-    { header: "Description", render: (row) => row.description },
-    { header: "Reference", render: (row) => row.reference || "-" }
-  ];
 </script>
 
 <h1 class="page-title">Journal Entries</h1>
@@ -83,31 +92,32 @@
   <label>
     Account:&nbsp;
     <select bind:value={accountId}>
-      {#each accounts as acc}
-        <option value={acc.id}>{acc.path || acc.name}</option>
-      {/each}
+      {#if data?.accounts_for_select}
+        {#each data.accounts_for_select as acc}
+          <option value={acc.id}>{acc.path || acc.name}</option>
+        {/each}
+      {/if}
     </select>
   </label>
-  <label>
-    Period:&nbsp;
-    <select bind:value={period}>
-      <option value="ytd">Year to Date</option>
-      <option value="current_month">Current Month</option>
-      <option value="all">All</option>
-      <option value="custom">Custom Range</option>
-    </select>
-  </label>
-  {#if period === "custom"}
-    <label>
-      Start:&nbsp;
-      <input type="date" bind:value={startDate} />
-    </label>
-    <label>
-      End:&nbsp;
-      <input type="date" bind:value={endDate} />
-    </label>
-  {/if}
-  <span class="meta">Entries: {data ? data.entries.length : 0}</span>
+  <span class="meta">Total: {data?.pagination?.total ?? 0} entries</span>
 </div>
 
-<Table {columns} rows={data ? data.entries : []} />
+<Table columns={columns} rows={data ? data.entries : []} />
+
+<div class="toolbar">
+  <button
+    class="button"
+    disabled={!data?.pagination?.has_prev}
+    on:click={() => load((data?.pagination?.page || 1) - 1)}
+  >
+    Prev Page
+  </button>
+  <span class="meta">Page {data?.pagination?.page ?? 1} / {data?.pagination?.pages ?? 1}</span>
+  <button
+    class="button"
+    disabled={!data?.pagination?.has_next}
+    on:click={() => load((data?.pagination?.page || 1) + 1)}
+  >
+    Next Page
+  </button>
+</div>
