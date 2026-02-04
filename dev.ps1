@@ -19,7 +19,7 @@ Write-Host "==> Installing backend dependencies"
 Write-Host "==> Installing frontend dependencies"
 Push-Location $frontend
 & npm install
-& node scripts/fix-css-tree.js
+& node scripts/fix-css-tree.cjs
 Pop-Location
 
 Write-Host "==> Starting backend (Flask) in background and frontend (SvelteKit) in foreground"
