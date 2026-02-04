@@ -19,6 +19,27 @@
   let monthStart = "";
   let months = [];
   let activeMonth = "";
+  let exportAll = false;
+  function toLocalDate(d) {
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
+  let entryDate = toLocalDate(new Date());
+  let debitQuery = "";
+  let creditQuery = "";
+  let amount = "";
+  let description = "";
+  let debitAccount = null;
+  let creditAccount = null;
+  let debitOpen = false;
+  let creditOpen = false;
+  let debitIndex = 0;
+  let creditIndex = 0;
+  let entryStatus = "";
+  let entryError = "";
+  let debitInput;
 
   const columns = [
     { header: "Date", render: (row) => row.entry_date },
@@ -35,6 +56,86 @@
     Income: Math.round(sums.Income?.reduce((acc, item) => acc + (Number(item.value) || 0), 0) || 0),
     Expense: Math.round(sums.Expense?.reduce((acc, item) => acc + (Number(item.value) || 0), 0) || 0)
   };
+
+  $: leafAccounts = (data?.accounts_for_select || []).filter((a) => a.is_leaf);
+  $: debitMatches = debitQuery
+    ? leafAccounts.filter((a) => (a.path || a.name).toLowerCase().includes(debitQuery.toLowerCase()))
+    : leafAccounts;
+  $: creditMatches = creditQuery
+    ? leafAccounts.filter((a) => (a.path || a.name).toLowerCase().includes(creditQuery.toLowerCase()))
+    : leafAccounts;
+
+  function selectDebit(acc) {
+    debitAccount = acc;
+    debitQuery = acc.path || acc.name;
+    debitOpen = false;
+  }
+
+  function selectCredit(acc) {
+    creditAccount = acc;
+    creditQuery = acc.path || acc.name;
+    creditOpen = false;
+  }
+
+  async function submitEntry() {
+    entryError = "";
+    entryStatus = "";
+    if (!entryDate || !debitAccount || !creditAccount || !amount) {
+      entryError = "Date, debit, credit and amount are required.";
+      return;
+    }
+    try {
+      const form = new URLSearchParams();
+      form.set("entry_date", entryDate);
+      const descValue =
+        (description || "").trim() ||
+        `${debitAccount?.name || debitAccount?.path || "Debit"} to ${creditAccount?.name || creditAccount?.path || "Credit"}`;
+      form.set("description", descValue);
+      form.set("debit_account_id", String(debitAccount.id));
+      form.set("credit_account_id", String(creditAccount.id));
+      form.set("amount", String(amount));
+      const res = await fetch("/api/transactions/new", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString()
+      });
+      let payload = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+      if (!res.ok) {
+        const text = payload?.error || (await res.text());
+        throw new Error(text || `Request failed: ${res.status}`);
+      }
+      if (payload?.error) {
+        throw new Error(payload.error);
+      }
+      entryStatus = "Saved.";
+      const entryMonthKey = entryDate ? entryDate.slice(0, 7) : "";
+      let didLoad = false;
+      if (entryMonthKey) {
+        ensureMonthVisible(entryMonthKey);
+        setActiveMonth(entryMonthKey);
+        didLoad = true;
+      }
+      amount = "";
+      description = "";
+      debitQuery = "";
+      creditQuery = "";
+      debitAccount = null;
+      creditAccount = null;
+      if (!didLoad) {
+        await load();
+      }
+      if (debitInput) {
+        debitInput.focus();
+      }
+    } catch (err) {
+      entryError = err.message || "Failed to save.";
+    }
+  }
 
   function labelForMonth(key) {
     const [y, m] = key.split("-");
@@ -60,13 +161,27 @@
     return out;
   }
 
+  function ensureMonthVisible(key) {
+    if (!key) return;
+    if (!monthStart) {
+      monthStart = key;
+      months = buildMonths(monthStart, null, null);
+      return;
+    }
+    const oldest = addMonths(monthStart, -11);
+    if (key > monthStart || key < oldest) {
+      monthStart = key;
+      months = buildMonths(monthStart, null, null);
+    }
+  }
+
   function setActiveMonth(key) {
     activeMonth = key;
     const [y, m] = key.split("-");
     const start = new Date(Number(y), Number(m) - 1, 1);
     const end = new Date(Number(y), Number(m), 0);
-    startDate = start.toISOString().slice(0, 10);
-    endDate = end.toISOString().slice(0, 10);
+    startDate = toLocalDate(start);
+    endDate = toLocalDate(end);
     period = "custom";
     load();
   }
@@ -190,17 +305,150 @@
     <button
       class="button"
       on:click={() => {
-        const url = `/api/transactions/export?period=${toPeriodParam(period, startDate, endDate)}`;
+        const exportPeriod = exportAll ? "all" : toPeriodParam(period, startDate, endDate);
+        const url = `/api/transactions/export?period=${exportPeriod}`;
         window.open(url, "_blank");
       }}
     >
       Export Excel
     </button>
+    <label class="meta">
+      <input type="checkbox" bind:checked={exportAll} />
+      &nbsp;Export all
+    </label>
     {#if importStatus}
       <span class="meta">{importStatus}</span>
     {/if}
     {#if importError}
       <span class="danger">{importError}</span>
+    {/if}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="toolbar entry-form">
+    <label>
+      Date:&nbsp;
+      <input type="date" bind:value={entryDate} />
+    </label>
+    <div class="autocomplete">
+      <label>Debit:&nbsp;</label>
+      <input
+        type="text"
+        bind:this={debitInput}
+        bind:value={debitQuery}
+        on:focus={() => (debitOpen = true)}
+        on:input={() => {
+          debitOpen = true;
+          debitIndex = 0;
+        }}
+        on:keydown={(e) => {
+          if (!debitOpen) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            debitIndex = Math.min(debitIndex + 1, debitMatches.length - 1);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            debitIndex = Math.max(debitIndex - 1, 0);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (debitMatches[debitIndex]) {
+              selectDebit(debitMatches[debitIndex]);
+            }
+          }
+        }}
+        placeholder="Type to search"
+      />
+      {#if debitOpen && debitMatches.length}
+        <div class="autocomplete-list">
+          {#each debitMatches as acc, i}
+            <button
+              class={`autocomplete-item ${i === debitIndex ? "active" : ""}`}
+              on:mousedown={() => selectDebit(acc)}
+            >
+              {acc.path || acc.name}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+    <label>
+      Amount:&nbsp;
+      <input
+        type="number"
+        step="0.01"
+        bind:value={amount}
+        on:keydown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submitEntry();
+          }
+        }}
+      />
+    </label>
+    <label>
+      Desc:&nbsp;
+      <input
+        type="text"
+        bind:value={description}
+        on:keydown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submitEntry();
+          }
+        }}
+      />
+    </label>
+    <div class="autocomplete">
+      <label>Credit:&nbsp;</label>
+      <input
+        type="text"
+        bind:value={creditQuery}
+        on:focus={() => (creditOpen = true)}
+        on:input={() => {
+          creditOpen = true;
+          creditIndex = 0;
+        }}
+        on:keydown={(e) => {
+          if (creditOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+            e.preventDefault();
+            if (e.key === "ArrowDown") {
+              creditIndex = Math.min(creditIndex + 1, creditMatches.length - 1);
+            } else {
+              creditIndex = Math.max(creditIndex - 1, 0);
+            }
+            return;
+          }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (creditOpen && creditMatches[creditIndex]) {
+              selectCredit(creditMatches[creditIndex]);
+            } else {
+              submitEntry();
+            }
+          }
+        }}
+        placeholder="Type to search"
+      />
+      {#if creditOpen && creditMatches.length}
+        <div class="autocomplete-list">
+          {#each creditMatches as acc, i}
+            <button
+              class={`autocomplete-item ${i === creditIndex ? "active" : ""}`}
+              on:mousedown={() => selectCredit(acc)}
+            >
+              {acc.path || acc.name}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+    <button class="button" on:click={submitEntry}>Add</button>
+    {#if entryStatus}
+      <span class="meta">{entryStatus}</span>
+    {/if}
+    {#if entryError}
+      <span class="danger">{entryError}</span>
     {/if}
   </div>
 </div>

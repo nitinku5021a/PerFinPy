@@ -151,6 +151,42 @@ a:hover {
   font-size: 12px;
 }
 
+.entry-form {
+  gap: 8px;
+}
+
+.autocomplete {
+  position: relative;
+  min-width: 220px;
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  z-index: 10;
+}
+
+.autocomplete-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.autocomplete-item.active,
+.autocomplete-item:hover {
+  background: var(--panel-muted);
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;
@@ -209,6 +245,157 @@ a:hover {
   background: var(--panel);
   border: 1px solid var(--border);
   padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dash-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.dash-title {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dash-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dash-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dash-mini {
+  height: 90px;
+}
+
+.dash-mini svg {
+  width: 100%;
+  height: 100%;
+}
+
+.flow-bars {
+  display: grid;
+  gap: 6px;
+}
+
+.flow-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.flow-bar {
+  height: 8px;
+  background: #eef2f7;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.flow-bar span {
+  display: block;
+  height: 100%;
+  background: #1d4ed8;
+}
+
+.flow-expense span {
+  background: #f97316;
+}
+
+.flow-net span {
+  background: #16a34a;
+}
+
+.donut-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.donut-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.donut-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.donut-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.chart {
+  height: 140px;
+  margin: 6px 0 10px 0;
+}
+
+.chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-bars {
+  height: 160px;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+.axis-labels.scroll-x {
+  overflow-x: auto;
+}
+
+.axis-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 45px;
+  gap: 4px;
+}
+
+.compact-chart {
+  height: 180px;
+}
+
+.axis-labels {
+  display: block;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
   margin-bottom: 8px;
 }
 

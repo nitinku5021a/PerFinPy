@@ -26,6 +26,11 @@
     return `${d.getFullYear()}-${mm}`;
   }
 
+  function isDisplayedNonZero(val) {
+    const num = Number(val) || 0;
+    return Math.round(num) !== 0;
+  }
+
   async function load() {
     try {
       error = "";
@@ -62,12 +67,12 @@
                 const accounts = (p.accounts || []).filter((a) => {
                   return months.some((mm) => {
                     const val = a.monthly_balances?.[mm.key] ?? 0;
-                    return Math.abs(Number(val) || 0) > 0.005;
+                    return isDisplayedNonZero(val);
                   });
                 });
                 const keepParent = months.some((m) => {
                   const val = p.monthly_balances?.[m.key] ?? 0;
-                  return Math.abs(Number(val) || 0) > 0.005;
+                  return isDisplayedNonZero(val);
                 }) || accounts.length > 0;
                 return keepParent ? { ...p, accounts } : null;
               })

@@ -13,7 +13,8 @@ def account_to_dict(acc):
         'export_path': acc.get_export_path(),
         'parent_id': acc.parent_id,
         'opening_balance': acc.opening_balance,
-        'is_active': acc.is_active
+        'is_active': acc.is_active,
+        'is_leaf': acc.is_leaf()
     }
 
 

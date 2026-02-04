@@ -488,3 +488,176 @@ def income_matrix_report(start_month_str=None):
         'has_newer': has_newer,
         'groups': groups
     }
+
+
+def _months_between(min_month, max_month):
+    months = []
+    cursor = date(min_month.year, min_month.month, 1)
+    end = date(max_month.year, max_month.month, 1)
+    while cursor <= end:
+        months.append(cursor)
+        cursor = _add_months(cursor, 1)
+    return months
+
+
+def networth_growth_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'yearly': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Asset', 'Liability'])).all()
+    account_ids = [a.id for a in accounts]
+    opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    yearly = []
+    prev_value = None
+    for year in range(min_month.year, max_month.year + 1):
+        year_end = date(year, 12, 1)
+        if year_end > max_month:
+            year_end = max_month
+        month_end = snapshots_service.month_end(year_end)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        assets = 0.0
+        liabilities = 0.0
+        for acc_id in account_ids:
+            val = opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Asset':
+                assets += val
+            else:
+                liabilities += val
+        networth = assets + liabilities
+        pct = None
+        if prev_value is not None and abs(prev_value) > 0.00001:
+            pct = ((networth - prev_value) / abs(prev_value)) * 100.0
+        yearly.append({
+            'year': year_end.year,
+            'networth': networth,
+            'pct_change': pct
+        })
+        prev_value = networth
+
+    return {'yearly': yearly}
+
+
+def net_savings_series_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Income', 'Expense'])).all()
+    account_ids = [a.id for a in accounts]
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    series = []
+    for month in months:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date >= month_start)
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        income = 0.0
+        expense = 0.0
+        for acc_id in account_ids:
+            val = sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Income':
+                income += abs(val)
+            else:
+                expense += abs(val)
+        net = income - expense
+        pct = None
+        if income > 0.00001:
+            pct = (net / income) * 100.0
+        series.append({
+            'month': month.strftime('%Y-%m'),
+            'income': income,
+            'expense': expense,
+            'net_savings': net,
+            'net_savings_pct': pct
+        })
+
+    return {'months': series}
+
+
+def networth_monthly_series_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Asset', 'Liability'])).all()
+    account_ids = [a.id for a in accounts]
+    opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    series = []
+    prev_value = None
+    for month in months:
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        assets = 0.0
+        liabilities = 0.0
+        for acc_id in account_ids:
+            val = opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Asset':
+                assets += val
+            else:
+                liabilities += val
+        networth = assets + liabilities
+        delta = None
+        pct = None
+        if prev_value is not None:
+            delta = networth - prev_value
+            if abs(prev_value) > 0.00001:
+                pct = (delta / abs(prev_value)) * 100.0
+        series.append({
+            'month': month.strftime('%Y-%m'),
+            'networth': networth,
+            'delta': delta,
+            'pct_change': pct
+        })
+        prev_value = networth
+
+    return {'months': series}

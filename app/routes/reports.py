@@ -24,6 +24,21 @@ def income_matrix():
     payload = reports_service.income_matrix_report(start_month)
     return jsonify(payload)
 
+@bp.route('/networth-growth')
+def networth_growth():
+    payload = reports_service.networth_growth_report()
+    return jsonify(payload)
+
+@bp.route('/net-savings-series')
+def net_savings_series():
+    payload = reports_service.net_savings_series_report()
+    return jsonify(payload)
+
+@bp.route('/networth-monthly')
+def networth_monthly():
+    payload = reports_service.networth_monthly_series_report()
+    return jsonify(payload)
+
 @bp.route('/balance-sheet')
 def balance_sheet():
     """Balance Sheet Report (Legacy - redirects to networth)"""

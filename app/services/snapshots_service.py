@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
 from sqlalchemy import func, case
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy import event
-from sqlalchemy.orm import Session as SASession
+from sqlalchemy.orm import Session as SASession, sessionmaker
 
 from app import db
 from app.models import (
@@ -214,7 +215,7 @@ def register_snapshot_listeners(db_obj):
 
     @event.listens_for(SASession, "after_flush")
     def _update_snapshots(session, flush_context):
-        if session.info.get('snapshot_in_progress'):
+        if session.info.get('snapshot_in_progress') or session.info.get('snapshot_monthly_in_progress'):
             return
 
         deltas = {}
@@ -242,18 +243,16 @@ def register_snapshot_listeners(db_obj):
             for (account_id, line_date), delta in deltas.items():
                 if abs(delta) < 1e-9:
                     continue
-                row = session.query(DailyAccountBalance).filter_by(
+                stmt = sqlite_insert(DailyAccountBalance).values(
                     account_id=account_id,
-                    date=line_date
-                ).first()
-                if row:
-                    row.balance = (row.balance or 0.0) + delta
-                else:
-                    session.add(DailyAccountBalance(
-                        account_id=account_id,
-                        date=line_date,
-                        balance=delta
-                    ))
+                    date=line_date,
+                    balance=delta
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['date', 'account_id'],
+                    set_={'balance': DailyAccountBalance.balance + delta}
+                )
+                session.execute(stmt)
             if months:
                 pending = session.info.setdefault('snapshot_months', set())
                 pending.update(months)
@@ -267,11 +266,14 @@ def register_snapshot_listeners(db_obj):
         months = session.info.pop('snapshot_months', None)
         if not months:
             return
-        session.info['snapshot_monthly_in_progress'] = True
+        # Use a fresh session; after_commit sessions can't emit SQL
+        SessionLocal = sessionmaker(bind=db.engine)
+        new_session = SessionLocal()
+        new_session.info['snapshot_monthly_in_progress'] = True
         try:
             for month in sorted(months):
-                recompute_monthly_networth(session, month)
-                recompute_monthly_pnl(session, month)
-            session.commit()
+                recompute_monthly_networth(new_session, month)
+                recompute_monthly_pnl(new_session, month)
+            new_session.commit()
         finally:
-            session.info.pop('snapshot_monthly_in_progress', None)
+            new_session.close()
