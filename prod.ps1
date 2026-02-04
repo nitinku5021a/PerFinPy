@@ -19,6 +19,7 @@ Write-Host "==> Installing backend dependencies"
 Write-Host "==> Installing frontend dependencies"
 Push-Location $frontend
 & npm install
+& node scripts/fix-css-tree.js
 Pop-Location
 
 Write-Host "==> Building frontend"

@@ -8,6 +8,7 @@
     "build": "svelte-kit sync && vite build",
     "preview": "svelte-kit preview",
     "start": "node build",
+    "postinstall": "node scripts/fix-css-tree.js",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
