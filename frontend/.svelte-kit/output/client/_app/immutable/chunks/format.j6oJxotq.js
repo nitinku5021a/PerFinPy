@@ -1,0 +1,1 @@
+async function o(t){const n=await fetch(`/api${t}`);if(!n.ok){const r=await n.text();throw new Error(r||`Request failed: ${n.status}`)}return n.json()}function e(t){if(t==null||t==="")return"--";const n=Number(t);return Number.isNaN(n)?String(t):Math.round(n).toLocaleString("en-IN")}export{o as a,e as f};

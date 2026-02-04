@@ -1,0 +1,189 @@
+{
+  ".svelte-kit/generated/server/internal.js": {
+    "file": "internal.js",
+    "name": "internal",
+    "src": ".svelte-kit/generated/server/internal.js",
+    "isEntry": true,
+    "imports": [
+      "_internal.js"
+    ]
+  },
+  "_NetworthMatrixTable.js": {
+    "file": "chunks/NetworthMatrixTable.js",
+    "name": "NetworthMatrixTable",
+    "imports": [
+      "_ssr.js"
+    ]
+  },
+  "_Table.js": {
+    "file": "chunks/Table.js",
+    "name": "Table",
+    "imports": [
+      "_ssr.js"
+    ]
+  },
+  "_exports.js": {
+    "file": "chunks/exports.js",
+    "name": "exports"
+  },
+  "_format.js": {
+    "file": "chunks/format.js",
+    "name": "format"
+  },
+  "_internal.js": {
+    "file": "chunks/internal.js",
+    "name": "internal",
+    "imports": [
+      "_ssr.js"
+    ]
+  },
+  "_period.js": {
+    "file": "chunks/period.js",
+    "name": "period"
+  },
+  "_ssr.js": {
+    "file": "chunks/ssr.js",
+    "name": "ssr"
+  },
+  "_stores.js": {
+    "file": "chunks/stores.js",
+    "name": "stores",
+    "imports": [
+      "_ssr.js",
+      "_exports.js"
+    ]
+  },
+  "node_modules/@sveltejs/kit/src/runtime/components/svelte-4/error.svelte": {
+    "file": "entries/fallbacks/error.svelte.js",
+    "name": "entries/fallbacks/error.svelte",
+    "src": "node_modules/@sveltejs/kit/src/runtime/components/svelte-4/error.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_stores.js"
+    ]
+  },
+  "node_modules/@sveltejs/kit/src/runtime/server/index.js": {
+    "file": "index.js",
+    "name": "index",
+    "src": "node_modules/@sveltejs/kit/src/runtime/server/index.js",
+    "isEntry": true,
+    "imports": [
+      "_internal.js",
+      "_exports.js",
+      "_ssr.js"
+    ]
+  },
+  "src/routes/+layout.svelte": {
+    "file": "entries/pages/_layout.svelte.js",
+    "name": "entries/pages/_layout.svelte",
+    "src": "src/routes/+layout.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_stores.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_layout.D9gu7W5_.css"
+    ]
+  },
+  "src/routes/+page.svelte": {
+    "file": "entries/pages/_page.svelte.js",
+    "name": "entries/pages/_page.svelte",
+    "src": "src/routes/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
+    ]
+  },
+  "src/routes/accounts/+page.svelte": {
+    "file": "entries/pages/accounts/_page.svelte.js",
+    "name": "entries/pages/accounts/_page.svelte",
+    "src": "src/routes/accounts/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_Table.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/dashboard/+page.svelte": {
+    "file": "entries/pages/dashboard/_page.svelte.js",
+    "name": "entries/pages/dashboard/_page.svelte",
+    "src": "src/routes/dashboard/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/income-statement/+page.svelte": {
+    "file": "entries/pages/income-statement/_page.svelte.js",
+    "name": "entries/pages/income-statement/_page.svelte",
+    "src": "src/routes/income-statement/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_NetworthMatrixTable.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/journal-entries/+page.svelte": {
+    "file": "entries/pages/journal-entries/_page.svelte.js",
+    "name": "entries/pages/journal-entries/_page.svelte",
+    "src": "src/routes/journal-entries/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_Table.js",
+      "_stores.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/ledger/+page.svelte": {
+    "file": "entries/pages/ledger/_page.svelte.js",
+    "name": "entries/pages/ledger/_page.svelte",
+    "src": "src/routes/ledger/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_period.js",
+      "_format.js",
+      "_Table.js"
+    ]
+  },
+  "src/routes/networth/+page.svelte": {
+    "file": "entries/pages/networth/_page.svelte.js",
+    "name": "entries/pages/networth/_page.svelte",
+    "src": "src/routes/networth/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_NetworthMatrixTable.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/transactions/+page.svelte": {
+    "file": "entries/pages/transactions/_page.svelte.js",
+    "name": "entries/pages/transactions/_page.svelte",
+    "src": "src/routes/transactions/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_Table.js",
+      "_format.js"
+    ]
+  },
+  "src/routes/trial-balance/+page.svelte": {
+    "file": "entries/pages/trial-balance/_page.svelte.js",
+    "name": "entries/pages/trial-balance/_page.svelte",
+    "src": "src/routes/trial-balance/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js",
+      "_Table.js",
+      "_period.js",
+      "_format.js"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-# PerFinPy - Personal Finance Accounting System
+ï»¿# PerFinPy - Personal Finance Accounting System
 
 PerFinPy is a personal finance accounting system built with a Flask API and a SvelteKit frontend. It implements double-entry bookkeeping, provides fast financial reports using snapshot tables, and supports Excel import/export.
 
@@ -21,10 +21,10 @@ PerFinPy is a personal finance accounting system built with a Flask API and a Sv
 ```
 PerFinPy/
 +-- app/
-¦   +-- __init__.py               # Application factory
-¦   +-- models/                   # SQLAlchemy models
-¦   +-- routes/                   # Flask API routes
-¦   +-- services/                 # Reporting, snapshots, transactions
+Â¦   +-- __init__.py               # Application factory
+Â¦   +-- models/                   # SQLAlchemy models
+Â¦   +-- routes/                   # Flask API routes
+Â¦   +-- services/                 # Reporting, snapshots, transactions
 +-- frontend/                     # SvelteKit UI
 +-- backfill_snapshots.py         # One-time snapshot backfill
 +-- config.py                     # Configuration settings
@@ -166,3 +166,52 @@ MIT License
 ## Support
 
 For issues or questions, please refer to the Flask and SQLAlchemy documentation.
+
+## One-Command Local Dev
+
+From the repo root, run:
+
+```bash
+dev.cmd
+```
+
+This will:
+- Create a Python virtual environment (if needed)
+- Install backend and frontend dependencies
+- Start the Flask backend in the background and the SvelteKit frontend in the same terminal
+
+Frontend: `http://127.0.0.1:5173`  
+Backend: `http://127.0.0.1:5000`
+
+
+## One-Command Production
+
+From the repo root, run:
+
+```bash
+prod.cmd
+```
+
+This will:
+- Install backend and frontend dependencies
+- Build the SvelteKit production bundle (adapter-node)
+- Run the Flask API with gunicorn
+- Run the SvelteKit Node server
+
+Defaults (override with env vars):
+- Backend: `http://0.0.0.0:8000` via `BACKEND_HOST` / `BACKEND_PORT`
+- Frontend: `http://0.0.0.0:5173` via `FRONTEND_HOST` / `FRONTEND_PORT`
+- API Base: `API_BASE_URL` (defaults to `http://127.0.0.1:8000`)
+
+Required production env:
+- `SECRET_KEY`
+- `DATABASE_URL`
+
+## Quick Setup
+
+1. Copy `.env.example` to `.env` and fill in `DATABASE_URL` and `SECRET_KEY`.
+2. Run `dev.cmd` for local development or `prod.cmd` for production mode.
+
+Notes:
+- `.env` is not checked into Git. Keep it local or store it securely.
+- If you do not set `DATABASE_URL`, the app defaults to a local SQLite database.
