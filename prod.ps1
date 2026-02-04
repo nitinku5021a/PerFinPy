@@ -20,6 +20,7 @@ Write-Host "==> Installing frontend dependencies"
 Push-Location $frontend
 & npm install
 & node scripts/fix-css-tree.cjs
+& node scripts/fix-svelte-kit.cjs
 Pop-Location
 
 Write-Host "==> Building frontend"
