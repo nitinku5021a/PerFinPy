@@ -68,6 +68,7 @@
     startDate = start.toISOString().slice(0, 10);
     endDate = end.toISOString().slice(0, 10);
     period = "custom";
+    load();
   }
 
   async function load() {
@@ -91,7 +92,9 @@
     startDate;
     endDate;
     accountId;
-    load();
+    if (period !== "custom" || (startDate && endDate)) {
+      load();
+    }
   }
 
   $: if (ready && data) {

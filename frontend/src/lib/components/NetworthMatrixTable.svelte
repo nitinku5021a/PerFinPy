@@ -2,6 +2,8 @@
   export let groups = [];
   export let months = [];
   export let formatValue = (val) => val ?? "";
+  export let networthByMonth = null;
+  export let networthLabel = "NETWORTH";
 </script>
 
 <div class="matrix-wrap">
@@ -15,6 +17,14 @@
       </tr>
     </thead>
     <tbody>
+      {#if networthByMonth}
+        <tr class="networth-row">
+          <td class="sticky-col sticky-col-1 networth-label">{networthLabel}</td>
+          {#each months as m}
+            <td class="num networth-value">{formatValue(networthByMonth[m.key])}</td>
+          {/each}
+        </tr>
+      {/if}
       {#each groups as group, gi}
         <tr class="group-row">
           <td class="sticky-col sticky-col-1 group-indent">{group.group}</td>

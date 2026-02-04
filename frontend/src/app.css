@@ -357,6 +357,23 @@ a:hover {
   padding-left: 3ch;
 }
 
+.matrix-table .networth-row td {
+  background: #dbeafe;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+}
+
+.matrix-table .networth-label {
+  color: #0f172a;
+  letter-spacing: 0.04em;
+}
+
+.matrix-table .networth-value {
+  background: #60a5fa;
+  color: #0b1d3a;
+  font-weight: 700;
+}
+
 .matrix-table tbody tr:hover td {
   background: var(--panel-muted);
 }

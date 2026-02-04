@@ -105,4 +105,20 @@
   </button>
 </div>
 
-<NetworthMatrixTable groups={filteredGroups} {months} formatValue={formatInr} />
+<NetworthMatrixTable
+  groups={filteredGroups}
+  {months}
+  formatValue={formatInr}
+  networthLabel="NETWORTH"
+  networthByMonth={(() => {
+    const assets = data?.find((g) => g.group === "Assets");
+    const liabilities = data?.find((g) => g.group === "Liabilities");
+    if (!assets || !liabilities) return null;
+    return Object.fromEntries(
+      months.map((m) => [
+        m.key,
+        (assets.monthly_balances?.[m.key] || 0) + (liabilities.monthly_balances?.[m.key] || 0)
+      ])
+    );
+  })()}
+/>

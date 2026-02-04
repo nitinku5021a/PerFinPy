@@ -328,7 +328,7 @@ def networth_matrix_report(start_month_str=None):
 
         for root in sorted(roots, key=lambda a: name_by_id[a.id].lower()):
             descendants = root.get_all_descendants()
-            leaf_accounts = descendants if descendants else []
+            leaf_accounts = descendants if descendants else [root]
             parent_payload = {
                 'name': name_by_id[root.id],
                 'accounts': [],
@@ -351,6 +351,119 @@ def networth_matrix_report(start_month_str=None):
                     balances_by_month[m].get(aid, opening_by_id.get(aid, 0.0))
                     for aid in ids
                 )
+
+            group_payload['parents'].append(parent_payload)
+
+        for m in month_keys:
+            group_payload['monthly_balances'][m] = sum(
+                p['monthly_balances'][m] for p in group_payload['parents']
+            )
+
+        groups.append(group_payload)
+
+    has_older = _add_months(start_month, -11) > min_month
+    has_newer = start_month < max_month
+
+    return {
+        'start_month': start_month.strftime('%Y-%m'),
+        'months': month_keys,
+        'has_older': has_older,
+        'has_newer': has_newer,
+        'groups': groups
+    }
+
+
+def income_matrix_report(start_month_str=None):
+    today = date.today()
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    max_month = date(today.year, today.month, 1)
+    min_month = date(today.year, today.month, 1)
+    if max_date:
+        max_month = date(max_date.year, max_date.month, 1)
+    if min_date:
+        min_month = date(min_date.year, min_date.month, 1)
+
+    start_month = date(today.year, today.month, 1)
+    if start_month_str:
+        try:
+            parsed = datetime.strptime(start_month_str, '%Y-%m').date()
+            start_month = date(parsed.year, parsed.month, 1)
+        except Exception:
+            start_month = date(today.year, today.month, 1)
+
+    if start_month > max_month:
+        start_month = max_month
+    if start_month < min_month:
+        start_month = min_month
+
+    months = [_add_months(start_month, -i) for i in range(0, 12)]
+    month_keys = [m.strftime('%Y-%m') for m in months]
+
+    account_types = ['Income', 'Expense']
+    accounts = Account.query.filter(Account.account_type.in_(account_types)).all()
+    account_ids = [a.id for a in accounts]
+    name_by_id = {a.id: (a.get_path() or a.name) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    balances_by_month = {}
+    for idx, month in enumerate(months):
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date >= month_start)
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        key = month_keys[idx]
+        balances_by_month[key] = {acc_id: sums.get(acc_id, 0.0) for acc_id in account_ids}
+
+    groups = []
+    for account_type in account_types:
+        roots = Account.query.filter_by(account_type=account_type, parent_id=None).all()
+        group_payload = {
+            'group': f"{account_type}",
+            'parents': [],
+            'monthly_balances': {}
+        }
+
+        for root in sorted(roots, key=lambda a: name_by_id[a.id].lower()):
+            descendants = root.get_all_descendants()
+            leaf_accounts = descendants if descendants else []
+            parent_payload = {
+                'name': name_by_id[root.id],
+                'accounts': [],
+                'monthly_balances': {}
+            }
+
+            for acc in sorted(leaf_accounts, key=lambda a: name_by_id[a.id].lower()):
+                acc_monthly = {}
+                for m in month_keys:
+                    val = balances_by_month[m].get(acc.id, 0.0)
+                    if type_by_id[acc.id] == 'Income':
+                        val = abs(val)
+                    acc_monthly[m] = val
+                parent_payload['accounts'].append({
+                    'name': name_by_id[acc.id].split(':')[-1],
+                    'monthly_balances': acc_monthly
+                })
+
+            for m in month_keys:
+                ids = [root.id] + [a.id for a in descendants]
+                total = 0.0
+                for aid in ids:
+                    val = balances_by_month[m].get(aid, 0.0)
+                    if type_by_id.get(aid) == 'Income':
+                        val = abs(val)
+                    total += val
+                parent_payload['monthly_balances'][m] = total
 
             group_payload['parents'].append(parent_payload)
 

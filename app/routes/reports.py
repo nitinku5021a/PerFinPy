@@ -18,6 +18,12 @@ def networth_matrix():
     payload = reports_service.networth_matrix_report(start_month)
     return jsonify(payload)
 
+@bp.route('/income-matrix')
+def income_matrix():
+    start_month = request.args.get('start')
+    payload = reports_service.income_matrix_report(start_month)
+    return jsonify(payload)
+
 @bp.route('/balance-sheet')
 def balance_sheet():
     """Balance Sheet Report (Legacy - redirects to networth)"""
