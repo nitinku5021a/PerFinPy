@@ -195,7 +195,7 @@ prod.cmd
 This will:
 - Install backend and frontend dependencies
 - Build the SvelteKit production bundle (adapter-node)
-- Run the Flask API with gunicorn
+- Run the Flask API with gunicorn (Linux/macOS) or waitress (Windows)
 - Run the SvelteKit Node server
 
 Defaults (override with env vars):
@@ -215,3 +215,4 @@ Required production env:
 Notes:
 - `.env` is not checked into Git. Keep it local or store it securely.
 - If you do not set `DATABASE_URL`, the app defaults to a local SQLite database.
+
