@@ -31,7 +31,7 @@ Pop-Location
 $backendHost = $env:BACKEND_HOST
 $isWindows = $env:OS -eq "Windows_NT"
 if (-not $backendHost) {
-  if ($isWindows) { $backendHost = "127.0.0.1" } else { $backendHost = "0.0.0.0" }
+  $backendHost = "0.0.0.0"
 }
 
 $backendPort = $env:BACKEND_PORT
@@ -51,7 +51,7 @@ try {
 if ($backendPortInUse) { $backendPort = "8002" }
 
 $frontendHost = $env:FRONTEND_HOST
-if (-not $frontendHost) { $frontendHost = "127.0.0.1" }
+if (-not $frontendHost) { $frontendHost = "0.0.0.0" }
 
 $frontendPort = $env:FRONTEND_PORT
 if (-not $frontendPort) { $frontendPort = "5173" }
