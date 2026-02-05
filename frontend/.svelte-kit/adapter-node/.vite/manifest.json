@@ -93,7 +93,7 @@
       "_stores.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.D9gu7W5_.css"
+      "_app/immutable/assets/_layout.CI6aEkEn.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -135,6 +135,15 @@
       "_ssr.js",
       "_NetworthMatrixTable.js",
       "_format.js"
+    ]
+  },
+  "src/routes/investments/+page.svelte": {
+    "file": "entries/pages/investments/_page.svelte.js",
+    "name": "entries/pages/investments/_page.svelte",
+    "src": "src/routes/investments/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
     ]
   },
   "src/routes/journal-entries/+page.svelte": {
@@ -193,6 +202,15 @@
       "_Table.js",
       "_period.js",
       "_format.js"
+    ]
+  },
+  "src/routes/wealth-report/+page.svelte": {
+    "file": "entries/pages/wealth-report/_page.svelte.js",
+    "name": "entries/pages/wealth-report/_page.svelte",
+    "src": "src/routes/wealth-report/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
     ]
   }
 }

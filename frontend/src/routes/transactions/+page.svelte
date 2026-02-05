@@ -202,6 +202,14 @@
     ready = true;
   });
 
+  function applyAccountFilter(id) {
+    accountId = String(id);
+  }
+
+  function resetAccountFilter() {
+    accountId = "all";
+  }
+
   $: if (ready) {
     period;
     startDate;
@@ -542,6 +550,12 @@
     </div>
   </div>
   <div>
+    <div class="toolbar">
+      <span class="meta">Account filter: {accountId === "all" ? "All" : accountId}</span>
+      <button class="button" on:click={resetAccountFilter} disabled={accountId === "all"}>
+        Reset
+      </button>
+    </div>
     <div class="table-wrap">
       <table class="table">
         <thead>
@@ -556,34 +570,34 @@
           <tr>
             <td>
               {#each data?.period_sums?.Asset || [] as item}
-                <div class="list-row">
+                <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
                   <span class="num">{formatInr(item.value)}</span>
-                </div>
+                </button>
               {/each}
             </td>
             <td>
               {#each data?.period_sums?.Liability || [] as item}
-                <div class="list-row">
+                <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
                   <span class="num">{formatInr(item.value)}</span>
-                </div>
+                </button>
               {/each}
             </td>
             <td>
               {#each data?.period_sums?.Income || [] as item}
-                <div class="list-row">
+                <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
                   <span class="num">{formatInr(item.value)}</span>
-                </div>
+                </button>
               {/each}
             </td>
             <td>
               {#each data?.period_sums?.Expense || [] as item}
-                <div class="list-row">
+                <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
                   <span class="num">{formatInr(item.value)}</span>
-                </div>
+                </button>
               {/each}
             </td>
           </tr>

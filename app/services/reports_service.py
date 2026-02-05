@@ -2,7 +2,7 @@ from datetime import datetime, date
 from app.models import Account, TransactionLine, JournalEntry, DailyAccountBalance
 from app.services.serialization import account_to_dict, entry_to_dict, isoformat_or_none, tree_to_dict
 from app.services import snapshots_service
-from sqlalchemy import func
+from sqlalchemy import func, case
 
 
 def get_period_dates(period_str):
@@ -661,3 +661,72 @@ def networth_monthly_series_report():
         prev_value = networth
 
     return {'months': series}
+
+
+def investment_flows_report(account_ids, months=13):
+    if not account_ids:
+        return {'months': []}
+
+    today = date.today()
+    end_month = date(today.year, today.month, 1)
+    start_month = _add_months(end_month, -(months - 1))
+    month_list = [ _add_months(start_month, i) for i in range(months) ]
+
+    flows = []
+    for month in month_list:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        net = (
+            TransactionLine.query.session.query(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (func.upper(TransactionLine.line_type) == 'DEBIT', TransactionLine.amount),
+                            else_=-TransactionLine.amount
+                        )
+                    ),
+                    0.0
+                )
+            )
+            .filter(TransactionLine.account_id.in_(account_ids))
+            .filter(TransactionLine.date >= month_start)
+            .filter(TransactionLine.date <= month_end)
+            .scalar()
+        )
+        flows.append({
+            'month': month.strftime('%Y-%m'),
+            'net_invested': float(net or 0.0)
+        })
+
+    return {'months': flows}
+
+
+def cashflow_sankey_data(month_str=None):
+    today = date.today()
+    if month_str:
+        try:
+            parsed = datetime.strptime(month_str, '%Y-%m').date()
+            month_start = date(parsed.year, parsed.month, 1)
+        except Exception:
+            month_start = date(today.year, today.month, 1)
+    else:
+        month_start = date(today.year, today.month, 1)
+
+    month_end = snapshots_service.month_end(month_start)
+
+    entries = (
+        JournalEntry.query.join(TransactionLine)
+        .filter(TransactionLine.date >= month_start)
+        .filter(TransactionLine.date <= month_end)
+        .distinct()
+        .order_by(JournalEntry.entry_date.asc())
+        .all()
+    )
+
+    accounts = Account.query.order_by(Account.account_type.asc(), Account.name.asc()).all()
+
+    return {
+        'month': month_start.strftime('%Y-%m'),
+        'accounts': [account_to_dict(a) for a in accounts],
+        'entries': [entry_to_dict(e, include_lines=True) for e in entries]
+    }

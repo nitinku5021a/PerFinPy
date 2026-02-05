@@ -39,6 +39,28 @@ def networth_monthly():
     payload = reports_service.networth_monthly_series_report()
     return jsonify(payload)
 
+
+@bp.route('/investment-flows')
+def investment_flows():
+    account_ids_raw = request.args.get('account_ids', '').strip()
+    if account_ids_raw:
+        try:
+            account_ids = [int(x) for x in account_ids_raw.split(',') if x.strip()]
+        except Exception:
+            account_ids = []
+    else:
+        account_ids = []
+
+    payload = reports_service.investment_flows_report(account_ids)
+    return jsonify(payload)
+
+
+@bp.route('/cashflow-sankey')
+def cashflow_sankey():
+    month = request.args.get('month')
+    payload = reports_service.cashflow_sankey_data(month)
+    return jsonify(payload)
+
 @bp.route('/balance-sheet')
 def balance_sheet():
     """Balance Sheet Report (Legacy - redirects to networth)"""

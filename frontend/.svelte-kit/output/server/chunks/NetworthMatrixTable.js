@@ -1,8 +1,10 @@
 import { c as create_ssr_component, e as each, g as escape, d as add_attribute } from "./ssr.js";
 function monthEnd(key) {
   const [y, m] = key.split("-");
-  const end = new Date(Number(y), Number(m), 0);
-  return end.toISOString().slice(0, 10);
+  const endDay = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+  const mm = String(Number(m)).padStart(2, "0");
+  const dd = String(endDay).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
 }
 const NetworthMatrixTable = create_ssr_component(($$result, $$props, $$bindings, slots) => {
   let { groups = [] } = $$props;

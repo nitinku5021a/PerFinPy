@@ -8,8 +8,10 @@
 
   function monthEnd(key) {
     const [y, m] = key.split("-");
-    const end = new Date(Number(y), Number(m), 0);
-    return end.toISOString().slice(0, 10);
+    const endDay = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+    const mm = String(Number(m)).padStart(2, "0");
+    const dd = String(endDay).padStart(2, "0");
+    return `${y}-${mm}-${dd}`;
   }
 
   function valueHref(accountId, monthKey) {

@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg: #f3f4f6;
   --panel: #ffffff;
@@ -87,29 +91,6 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-}
-
-.header {
-  height: var(--header-height);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.header-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.header-meta {
-  color: var(--muted);
-  font-size: 11.5px;
 }
 
 .content {
@@ -221,6 +202,19 @@ a:hover {
   gap: 8px;
   padding: 2px 0;
   border-bottom: 1px dotted var(--border);
+}
+
+.list-row-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.list-row-btn:hover {
+  background: var(--panel-muted);
 }
 
 .list-row:last-child {
@@ -418,6 +412,26 @@ a:hover {
 
 .panel-value {
   font-variant-numeric: tabular-nums;
+}
+
+.positive {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.negative {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.meta.positive {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.meta.negative {
+  color: #b42318;
+  font-weight: 600;
 }
 
 .table-wrap {

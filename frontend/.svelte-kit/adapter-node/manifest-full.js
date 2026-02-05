@@ -10,7 +10,7 @@ return {
 	assets: new Set([]),
 	mimeTypes: {},
 	_: {
-		client: {"start":"_app/immutable/entry/start.D2jpS_FA.js","app":"_app/immutable/entry/app.C9GJOkJG.js","imports":["_app/immutable/entry/start.D2jpS_FA.js","_app/immutable/chunks/entry.Ch8b7i4l.js","_app/immutable/chunks/scheduler.DXwQMlsl.js","_app/immutable/entry/app.C9GJOkJG.js","_app/immutable/chunks/scheduler.DXwQMlsl.js","_app/immutable/chunks/index.BwbdioCG.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
+		client: {"start":"_app/immutable/entry/start.Cs4p5g7A.js","app":"_app/immutable/entry/app.B5RS28v4.js","imports":["_app/immutable/entry/start.Cs4p5g7A.js","_app/immutable/chunks/entry.O7skaJxz.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/entry/app.B5RS28v4.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/chunks/index.ULOKnR4R.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -22,7 +22,9 @@ return {
 			__memo(() => import('./nodes/7.js')),
 			__memo(() => import('./nodes/8.js')),
 			__memo(() => import('./nodes/9.js')),
-			__memo(() => import('./nodes/10.js'))
+			__memo(() => import('./nodes/10.js')),
+			__memo(() => import('./nodes/11.js')),
+			__memo(() => import('./nodes/12.js'))
 		],
 		routes: [
 			{
@@ -54,38 +56,52 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/investments",
+				pattern: /^\/investments\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				endpoint: null
+			},
+			{
 				id: "/journal-entries",
 				pattern: /^\/journal-entries\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				page: { layouts: [0,], errors: [1,], leaf: 7 },
 				endpoint: null
 			},
 			{
 				id: "/ledger",
 				pattern: /^\/ledger\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				page: { layouts: [0,], errors: [1,], leaf: 8 },
 				endpoint: null
 			},
 			{
 				id: "/networth",
 				pattern: /^\/networth\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 8 },
+				page: { layouts: [0,], errors: [1,], leaf: 9 },
 				endpoint: null
 			},
 			{
 				id: "/transactions",
 				pattern: /^\/transactions\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				page: { layouts: [0,], errors: [1,], leaf: 10 },
 				endpoint: null
 			},
 			{
 				id: "/trial-balance",
 				pattern: /^\/trial-balance\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				endpoint: null
+			},
+			{
+				id: "/wealth-report",
+				pattern: /^\/wealth-report\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 12 },
 				endpoint: null
 			}
 		],

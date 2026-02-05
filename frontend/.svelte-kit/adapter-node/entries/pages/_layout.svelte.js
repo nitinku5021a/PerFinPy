@@ -9,6 +9,14 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
     { href: "/ledger", label: "Ledger" },
     { href: "/networth", label: "Net Worth" },
     {
+      href: "/investments",
+      label: "Investments"
+    },
+    {
+      href: "/wealth-report",
+      label: "Wealth Report"
+    },
+    {
       href: "/income-statement",
       label: "Income Statement"
     },
@@ -30,26 +38,8 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
     return `<a${add_attribute("href", link.href, 0)}${add_classes(($page.url.pathname === link.href ? "active" : "").trim())}>${escape(link.label)} </a>`;
   })}</nav></aside>`;
 });
-const Header = create_ssr_component(($$result, $$props, $$bindings, slots) => {
-  let title;
-  let $page, $$unsubscribe_page;
-  $$unsubscribe_page = subscribe(page, (value) => $page = value);
-  const titles = {
-    "/dashboard": "Dashboard",
-    "/accounts": "Accounts",
-    "/ledger": "Ledger",
-    "/networth": "Net Worth",
-    "/income-statement": "Income Statement",
-    "/trial-balance": "Trial Balance",
-    "/journal-entries": "Journal Entries",
-    "/transactions": "Transactions"
-  };
-  title = titles[$page.url.pathname] || "PerFinPy";
-  $$unsubscribe_page();
-  return `<header class="header"><div class="header-title">${escape(title)}</div> <div class="header-meta" data-svelte-h="svelte-1vv4n1n">INR</div></header>`;
-});
 const Layout = create_ssr_component(($$result, $$props, $$bindings, slots) => {
-  return `<div class="shell">${validate_component(Sidebar, "Sidebar").$$render($$result, {}, {}, {})} <div class="main">${validate_component(Header, "Header").$$render($$result, {}, {}, {})} <main class="content">${slots.default ? slots.default({}) : ``}</main></div></div>`;
+  return `<div class="shell">${validate_component(Sidebar, "Sidebar").$$render($$result, {}, {}, {})} <div class="main"><main class="content">${slots.default ? slots.default({}) : ``}</main></div></div>`;
 });
 export {
   Layout as default

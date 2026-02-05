@@ -3,6 +3,8 @@ import { T as Table } from "../../../chunks/Table.js";
 import { p as page } from "../../../chunks/stores.js";
 import { f as formatInr } from "../../../chunks/format.js";
 const Page = create_ssr_component(($$result, $$props, $$bindings, slots) => {
+  let pageTotalAmount;
+  let filterLabel;
   let $$unsubscribe_page;
   $$unsubscribe_page = subscribe(page, (value) => value);
   const columns = [
@@ -28,9 +30,11 @@ const Page = create_ssr_component(($$result, $$props, $$bindings, slots) => {
       render: (row) => row.credit_account
     }
   ];
+  pageTotalAmount = [].reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  filterLabel = "Filtered: All";
   $$unsubscribe_page();
   return `<h1 class="page-title" data-svelte-h="svelte-vinmls">Journal Entries</h1> <p class="page-subtitle" data-svelte-h="svelte-3hiry4">Account-level drilldown.</p> ${``} <div class="toolbar"><label>Account: 
-    <select>${``}</select></label> <span class="meta">Total: ${escape(0)} entries</span></div> ${validate_component(Table, "Table").$$render($$result, { columns, rows: [] }, {}, {})} <div class="toolbar"><button class="button" ${"disabled"}>Prev Page</button> <span class="meta">Page ${escape(1)} / ${escape(1)}</span> <button class="button" ${"disabled"}>Next Page</button></div>`;
+    <select>${``}</select></label> <span class="meta">Total: ${escape(0)} entries</span> ${filterLabel ? `<span class="meta">${escape(filterLabel)}</span>` : ``} ${`<span class="meta">All Amount: ${escape(formatInr(0))}</span> <span class="meta">Page Amount: ${escape(formatInr(pageTotalAmount))}</span>`}</div> ${validate_component(Table, "Table").$$render($$result, { columns, rows: [] }, {}, {})} <div class="toolbar"><button class="button" ${"disabled"}>Prev Page</button> <span class="meta">Page ${escape(1)} / ${escape(1)}</span> <button class="button" ${"disabled"}>Next Page</button></div>`;
 });
 export {
   Page as default

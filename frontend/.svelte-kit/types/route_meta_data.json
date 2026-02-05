@@ -3,9 +3,11 @@
 	"/accounts": [],
 	"/dashboard": [],
 	"/income-statement": [],
+	"/investments": [],
 	"/journal-entries": [],
 	"/ledger": [],
 	"/networth": [],
 	"/transactions": [],
-	"/trial-balance": []
+	"/trial-balance": [],
+	"/wealth-report": []
 }

@@ -1,5 +1,6 @@
 from datetime import datetime
 from app import db
+from sqlalchemy import case, select
 from app.models import Account, JournalEntry, TransactionLine, AccountType, JournalEntryEditLog, DailyAccountBalance
 from app.services.serialization import account_to_dict, entry_to_dict, isoformat_or_none
 from app.utils.excel_import import import_transactions_from_excel
@@ -97,6 +98,7 @@ def list_transactions(page, period, account_id):
                 val = -abs(val)
             if abs(val) > 0.005:
                 type_groups[acc.account_type].append({
+                    'account_id': acc.id,
                     'name': acc.name,
                     'value': val
                 })
@@ -108,6 +110,52 @@ def list_transactions(page, period, account_id):
 
     max_entry_date = db.session.query(db.func.max(JournalEntry.entry_date)).scalar()
     min_entry_date = db.session.query(db.func.min(JournalEntry.entry_date)).scalar()
+
+    entry_ids_subq = q.with_entities(JournalEntry.id).subquery()
+    entry_ids_select = select(entry_ids_subq.c.id)
+    total_amount = (
+        db.session.query(db.func.coalesce(db.func.sum(TransactionLine.amount), 0.0))
+        .filter(TransactionLine.journal_entry_id.in_(entry_ids_select))
+        .filter(db.func.upper(TransactionLine.line_type) == 'DEBIT')
+        .scalar()
+    )
+
+    account_net_total_all = None
+    account_net_total_page = None
+    if account_id:
+        account = Account.query.get(account_id)
+        if account:
+            descendant_ids = [a.id for a in account.get_all_descendants()] + [account.id]
+        else:
+            descendant_ids = [account_id]
+
+        account_net_total_all = (
+            db.session.query(db.func.coalesce(db.func.sum(
+                case(
+                    (db.func.upper(TransactionLine.line_type) == 'DEBIT', TransactionLine.amount),
+                    else_=-TransactionLine.amount
+                )
+            ), 0.0))
+            .filter(TransactionLine.journal_entry_id.in_(entry_ids_select))
+            .filter(TransactionLine.account_id.in_(descendant_ids))
+            .scalar()
+        )
+
+        page_entry_ids = [e.id for e in entries.items]
+        if page_entry_ids:
+            account_net_total_page = (
+                db.session.query(db.func.coalesce(db.func.sum(
+                    case(
+                        (db.func.upper(TransactionLine.line_type) == 'DEBIT', TransactionLine.amount),
+                        else_=-TransactionLine.amount
+                    )
+                ), 0.0))
+                .filter(TransactionLine.journal_entry_id.in_(page_entry_ids))
+                .filter(TransactionLine.account_id.in_(descendant_ids))
+                .scalar()
+            )
+        else:
+            account_net_total_page = 0.0
 
     return {
         'page': 'transactions_list',
@@ -121,6 +169,9 @@ def list_transactions(page, period, account_id):
             'has_next': entries.has_next,
             'has_prev': entries.has_prev
         },
+        'total_amount': total_amount,
+        'account_net_total_all': account_net_total_all,
+        'account_net_total_page': account_net_total_page,
         'period': period,
         'account_id': account_id,
         'accounts_for_select': [account_to_dict(a) for a in accounts_for_select],

@@ -63,14 +63,14 @@ const Page = create_ssr_component(($$result, $$props, $$bindings, slots) => {
     <select><option value="current_month" data-svelte-h="svelte-ifagp3">Current Month</option><option value="ytd" data-svelte-h="svelte-ne2kh5">Year to Date</option><option value="all" data-svelte-h="svelte-421o1o">All</option><option value="custom" data-svelte-h="svelte-tc3t8p">Custom Range</option></select></label> ${``} <label>Account: 
     <select><option value="all" data-svelte-h="svelte-aq5lji">All Accounts</option>${``}</select></label> <span class="meta">Total: ${escape(0)} entries</span></div> <div class="tabs">${each(months, (m) => {
     return `<button${add_attribute("class", `tab ${activeMonth === m.key ? "active" : ""}`, 0)}>${escape(m.label)} </button>`;
-  })}</div> <div class="split"><div>${validate_component(Table, "Table").$$render($$result, { columns, rows: [] }, {}, {})} <div class="toolbar"><button class="button" ${"disabled"}>Prev Page</button> <span class="meta">Page ${escape(1)} / ${escape(1)}</span> <button class="button" ${"disabled"}>Next Page</button></div></div> <div><div class="table-wrap"><table class="table"><thead><tr><th>Asset <span class="meta">(${escape(formatInr(totals.Asset))})</span></th> <th>Liability <span class="meta">(${escape(formatInr(totals.Liability))})</span></th> <th>Income <span class="meta">(${escape(formatInr(totals.Income))})</span></th> <th>Expense <span class="meta">(${escape(formatInr(totals.Expense))})</span></th></tr></thead> <tbody><tr><td>${each([], (item) => {
-    return `<div class="list-row"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </div>`;
+  })}</div> <div class="split"><div>${validate_component(Table, "Table").$$render($$result, { columns, rows: [] }, {}, {})} <div class="toolbar"><button class="button" ${"disabled"}>Prev Page</button> <span class="meta">Page ${escape(1)} / ${escape(1)}</span> <button class="button" ${"disabled"}>Next Page</button></div></div> <div><div class="toolbar"><span class="meta">Account filter: ${escape("All")}</span> <button class="button" ${"disabled"}>Reset</button></div> <div class="table-wrap"><table class="table"><thead><tr><th>Asset <span class="meta">(${escape(formatInr(totals.Asset))})</span></th> <th>Liability <span class="meta">(${escape(formatInr(totals.Liability))})</span></th> <th>Income <span class="meta">(${escape(formatInr(totals.Income))})</span></th> <th>Expense <span class="meta">(${escape(formatInr(totals.Expense))})</span></th></tr></thead> <tbody><tr><td>${each([], (item) => {
+    return `<button class="list-row list-row-btn"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </button>`;
   })}</td> <td>${each([], (item) => {
-    return `<div class="list-row"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </div>`;
+    return `<button class="list-row list-row-btn"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </button>`;
   })}</td> <td>${each([], (item) => {
-    return `<div class="list-row"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </div>`;
+    return `<button class="list-row list-row-btn"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </button>`;
   })}</td> <td>${each([], (item) => {
-    return `<div class="list-row"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </div>`;
+    return `<button class="list-row list-row-btn"><span>${escape(item.name)}</span> <span class="num">${escape(formatInr(item.value))}</span> </button>`;
   })}</td></tr></tbody></table></div></div></div>`;
 });
 export {
