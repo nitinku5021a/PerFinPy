@@ -20,8 +20,11 @@ def new_transaction():
     """Create new journal entry (simplified: date, debit account, description, amount, credit account)."""
     if request.method == 'POST':
         try:
-            transactions_service.create_transaction(request.form)
-            return redirect(url_for('transactions.list_transactions'))
+            result = transactions_service.create_transaction(request.form)
+            return jsonify({
+                'success': True,
+                **result
+            })
         except Exception as e:
             payload = transactions_service.get_new_transaction_form_data()
             payload['error'] = str(e)

@@ -1,9 +1,24 @@
 import type { Handle } from "@sveltejs/kit";
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:5000";
+function getApiBaseUrl() {
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+
+  const isProd = process.env.NODE_ENV === "production";
+  const defaultPort = isProd ? "8001" : "5000";
+  let host = process.env.BACKEND_HOST || "127.0.0.1";
+  const port = process.env.BACKEND_PORT || defaultPort;
+
+  // Normalize non-routable bind addresses for client use.
+  if (host === "0.0.0.0" || host === "::" || host === "[::]") {
+    host = "127.0.0.1";
+  }
+
+  return `http://${host}:${port}`;
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
   if (event.url.pathname.startsWith("/api")) {
+    const API_BASE_URL = getApiBaseUrl();
     const targetUrl =
       API_BASE_URL +
       event.url.pathname.replace(/^\/api/, "") +
@@ -25,11 +40,16 @@ export const handle: Handle = async ({ event, resolve }) => {
       init.duplex = "half";
     }
 
-    const upstream = await fetch(targetUrl, init);
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers: upstream.headers
-    });
+    try {
+      const upstream = await fetch(targetUrl, init);
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: upstream.headers
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upstream fetch failed";
+      return new Response(message, { status: 502 });
+    }
   }
 
   return resolve(event);

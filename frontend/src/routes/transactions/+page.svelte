@@ -40,6 +40,7 @@
   let entryStatus = "";
   let entryError = "";
   let debitInput;
+  let blurTimer;
 
   const columns = [
     { header: "Date", render: (row) => row.entry_date },
@@ -77,6 +78,19 @@
     creditOpen = false;
   }
 
+  function closeDebit() {
+    debitOpen = false;
+  }
+
+  function closeCredit() {
+    creditOpen = false;
+  }
+
+  function closeAllDropdowns() {
+    debitOpen = false;
+    creditOpen = false;
+  }
+
   async function submitEntry() {
     entryError = "";
     entryStatus = "";
@@ -99,14 +113,15 @@
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: form.toString()
       });
+      const rawText = await res.text();
       let payload = null;
       try {
-        payload = await res.json();
+        payload = rawText ? JSON.parse(rawText) : null;
       } catch {
         payload = null;
       }
       if (!res.ok) {
-        const text = payload?.error || (await res.text());
+        const text = payload?.error || rawText;
         throw new Error(text || `Request failed: ${res.status}`);
       }
       if (payload?.error) {
@@ -117,7 +132,7 @@
       let didLoad = false;
       if (entryMonthKey) {
         ensureMonthVisible(entryMonthKey);
-        setActiveMonth(entryMonthKey);
+        await setActiveMonth(entryMonthKey);
         didLoad = true;
       }
       amount = "";
@@ -175,7 +190,7 @@
     }
   }
 
-  function setActiveMonth(key) {
+  async function setActiveMonth(key) {
     activeMonth = key;
     const [y, m] = key.split("-");
     const start = new Date(Number(y), Number(m) - 1, 1);
@@ -183,7 +198,7 @@
     startDate = toLocalDate(start);
     endDate = toLocalDate(end);
     period = "custom";
-    load();
+    await load();
   }
 
   async function load() {
@@ -345,13 +360,28 @@
         type="text"
         bind:this={debitInput}
         bind:value={debitQuery}
-        on:focus={() => (debitOpen = true)}
+        on:focus={() => {
+          creditOpen = false;
+          debitOpen = true;
+        }}
         on:input={() => {
           debitOpen = true;
           debitIndex = 0;
         }}
+        on:blur={() => {
+          blurTimer = setTimeout(closeDebit, 120);
+        }}
         on:keydown={(e) => {
           if (!debitOpen) return;
+          if (e.key === "Escape") {
+            e.preventDefault();
+            closeDebit();
+            return;
+          }
+          if (e.key === "Tab") {
+            closeDebit();
+            return;
+          }
           if (e.key === "ArrowDown") {
             e.preventDefault();
             debitIndex = Math.min(debitIndex + 1, debitMatches.length - 1);
@@ -372,7 +402,10 @@
           {#each debitMatches as acc, i}
             <button
               class={`autocomplete-item ${i === debitIndex ? "active" : ""}`}
-              on:mousedown={() => selectDebit(acc)}
+              on:mousedown|preventDefault={() => {
+                if (blurTimer) clearTimeout(blurTimer);
+                selectDebit(acc);
+              }}
             >
               {acc.path || acc.name}
             </button>
@@ -392,6 +425,7 @@
             submitEntry();
           }
         }}
+        on:focus={closeAllDropdowns}
       />
     </label>
     <label>
@@ -405,6 +439,7 @@
             submitEntry();
           }
         }}
+        on:focus={closeAllDropdowns}
       />
     </label>
     <div class="autocomplete">
@@ -412,12 +447,27 @@
       <input
         type="text"
         bind:value={creditQuery}
-        on:focus={() => (creditOpen = true)}
+        on:focus={() => {
+          debitOpen = false;
+          creditOpen = true;
+        }}
         on:input={() => {
           creditOpen = true;
           creditIndex = 0;
         }}
+        on:blur={() => {
+          blurTimer = setTimeout(closeCredit, 120);
+        }}
         on:keydown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            closeCredit();
+            return;
+          }
+          if (e.key === "Tab") {
+            closeCredit();
+            return;
+          }
           if (creditOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
             e.preventDefault();
             if (e.key === "ArrowDown") {
@@ -443,7 +493,10 @@
           {#each creditMatches as acc, i}
             <button
               class={`autocomplete-item ${i === creditIndex ? "active" : ""}`}
-              on:mousedown={() => selectCredit(acc)}
+              on:mousedown|preventDefault={() => {
+                if (blurTimer) clearTimeout(blurTimer);
+                selectCredit(acc);
+              }}
             >
               {acc.path || acc.name}
             </button>
