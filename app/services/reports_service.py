@@ -622,6 +622,19 @@ def networth_monthly_series_report():
     opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
     type_by_id = {a.id: a.account_type for a in accounts}
 
+    real_estate_root = (
+        Account.query
+        .filter(
+            func.lower(Account.name) == 'real estate',
+            Account.account_type == 'Asset',
+            Account.parent_id.is_(None)
+        )
+        .first()
+    )
+    real_estate_ids = set()
+    if real_estate_root:
+        real_estate_ids = {real_estate_root.id, *[a.id for a in real_estate_root.get_all_descendants()]}
+
     series = []
     prev_value = None
     for month in months:
@@ -639,13 +652,17 @@ def networth_monthly_series_report():
         sums = {row[0]: row[1] for row in rows}
         assets = 0.0
         liabilities = 0.0
+        real_estate = 0.0
         for acc_id in account_ids:
             val = opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
             if type_by_id[acc_id] == 'Asset':
                 assets += val
             else:
                 liabilities += val
+            if acc_id in real_estate_ids:
+                real_estate += val
         networth = assets + liabilities
+        liquid_networth = networth - real_estate
         delta = None
         pct = None
         if prev_value is not None:
@@ -655,6 +672,8 @@ def networth_monthly_series_report():
         series.append({
             'month': month.strftime('%Y-%m'),
             'networth': networth,
+            'real_estate': real_estate,
+            'liquid_networth': liquid_networth,
             'delta': delta,
             'pct_change': pct
         })

@@ -39,22 +39,45 @@
   }
 
   $: metrics = getMonthlyNetWorth(series);
-  $: sparklineSeries = metrics.series.slice(-12);
-  $: growthLabel = metrics.annualizedGrowthPct === null
+  $: liquidSeries = (series || []).map((point) => {
+    const realEstate =
+      point.real_estate !== undefined && point.real_estate !== null
+        ? Number(point.real_estate) || 0
+        : null;
+    const liquid =
+      point.liquid_networth !== undefined && point.liquid_networth !== null
+        ? Number(point.liquid_networth) || 0
+        : realEstate === null
+          ? null
+          : (Number(point.networth) || 0) - realEstate;
+    return {
+      ...point,
+      networth: liquid === null ? Number(point.networth) || 0 : liquid
+    };
+  });
+  $: liquidMetrics = getMonthlyNetWorth(liquidSeries);
+  $: sparklineSeries = liquidMetrics.series.slice(-12);
+  $: growthLabel = liquidMetrics.annualizedGrowthPct === null
     ? "--"
-    : `${metrics.annualizedGrowthPct >= 0 ? "↑" : "↓"} ${Math.abs(metrics.annualizedGrowthPct).toFixed(1)}% p.a. (monthly annualized)`;
+    : `${liquidMetrics.annualizedGrowthPct >= 0 ? "↑" : "↓"} ${Math.abs(liquidMetrics.annualizedGrowthPct).toFixed(1)}% p.a. (monthly annualized)`;
   $: growthClass =
-    metrics.annualizedGrowthPct === null
+    liquidMetrics.annualizedGrowthPct === null
       ? "text-gray-400"
-      : metrics.annualizedGrowthPct >= 0
+      : liquidMetrics.annualizedGrowthPct >= 0
         ? "text-emerald-600"
         : "text-rose-600";
+  $: liquidNetworthValue = liquidMetrics.latest ? liquidMetrics.latest.networth : null;
 </script>
 
 <DashboardCard title="Net Worth" iconBg="bg-emerald-50" iconColor="text-emerald-600">
-  <span slot="value">{metrics.latest ? formatInr(metrics.latest.networth) : "--"}</span>
-  <div slot="body" class={`mt-2 flex items-center gap-2 text-sm font-semibold ${growthClass}`}>
-    <span>{growthLabel}</span>
+  <span slot="value">{liquidNetworthValue === null ? "--" : formatInr(liquidNetworthValue)}</span>
+  <div slot="body" class="mt-2 space-y-1">
+    <div class={`flex items-center gap-2 text-sm font-semibold ${growthClass}`}>
+      <span>{growthLabel}</span>
+    </div>
+    <div class="text-xs font-semibold text-gray-500">
+      Net Worth: {metrics.latest ? formatInr(metrics.latest.networth) : "--"}
+    </div>
   </div>
   <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-6 w-6" stroke-width="1.5">
     <path

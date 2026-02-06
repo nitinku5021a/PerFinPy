@@ -1,6 +1,8 @@
 export type NetWorthMonthlyPoint = {
   month: string;
   networth: number;
+  real_estate?: number | null;
+  liquid_networth?: number | null;
   delta?: number | null;
   pct_change?: number | null;
 };

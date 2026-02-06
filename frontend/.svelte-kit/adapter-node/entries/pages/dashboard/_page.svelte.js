@@ -97,15 +97,28 @@ function sparklinePath$1(data, width, height) {
 }
 const NetWorthGrowthPanel = create_ssr_component(($$result, $$props, $$bindings, slots) => {
   let metrics;
+  let liquidSeries;
+  let liquidMetrics;
   let sparklineSeries;
   let growthLabel;
   let growthClass;
+  let liquidNetworthValue;
   let { series = [] } = $$props;
   if ($$props.series === void 0 && $$bindings.series && series !== void 0) $$bindings.series(series);
   metrics = getMonthlyNetWorth(series);
-  sparklineSeries = metrics.series.slice(-12);
-  growthLabel = metrics.annualizedGrowthPct === null ? "--" : `${metrics.annualizedGrowthPct >= 0 ? "↑" : "↓"} ${Math.abs(metrics.annualizedGrowthPct).toFixed(1)}% p.a. (monthly annualized)`;
-  growthClass = metrics.annualizedGrowthPct === null ? "text-gray-400" : metrics.annualizedGrowthPct >= 0 ? "text-emerald-600" : "text-rose-600";
+  liquidSeries = (series || []).map((point) => {
+    const realEstate = point.real_estate !== void 0 && point.real_estate !== null ? Number(point.real_estate) || 0 : null;
+    const liquid = point.liquid_networth !== void 0 && point.liquid_networth !== null ? Number(point.liquid_networth) || 0 : realEstate === null ? null : (Number(point.networth) || 0) - realEstate;
+    return {
+      ...point,
+      networth: liquid === null ? Number(point.networth) || 0 : liquid
+    };
+  });
+  liquidMetrics = getMonthlyNetWorth(liquidSeries);
+  sparklineSeries = liquidMetrics.series.slice(-12);
+  growthLabel = liquidMetrics.annualizedGrowthPct === null ? "--" : `${liquidMetrics.annualizedGrowthPct >= 0 ? "↑" : "↓"} ${Math.abs(liquidMetrics.annualizedGrowthPct).toFixed(1)}% p.a. (monthly annualized)`;
+  growthClass = liquidMetrics.annualizedGrowthPct === null ? "text-gray-400" : liquidMetrics.annualizedGrowthPct >= 0 ? "text-emerald-600" : "text-rose-600";
+  liquidNetworthValue = liquidMetrics.latest ? liquidMetrics.latest.networth : null;
   return `${validate_component(DashboardCard, "DashboardCard").$$render(
     $$result,
     {
@@ -122,10 +135,10 @@ const NetWorthGrowthPanel = create_ssr_component(($$result, $$props, $$bindings,
         return `<svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-6 w-6" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 7.5h19.5m-16.5 6h3.75m3 0h3.75m3 0h1.5M3 6.75h18A1.5 1.5 0 0122.5 8.25v7.5A1.5 1.5 0 0121 17.25H3A1.5 1.5 0 011.5 15.75v-7.5A1.5 1.5 0 013 6.75z"></path></svg>`;
       },
       body: () => {
-        return `<div slot="body"${add_attribute("class", `mt-2 flex items-center gap-2 text-sm font-semibold ${growthClass}`, 0)}><span>${escape(growthLabel)}</span></div>`;
+        return `<div slot="body" class="mt-2 space-y-1"><div${add_attribute("class", `flex items-center gap-2 text-sm font-semibold ${growthClass}`, 0)}><span>${escape(growthLabel)}</span></div> <div class="text-xs font-semibold text-gray-500">Net Worth: ${escape(metrics.latest ? formatInr(metrics.latest.networth) : "--")}</div></div>`;
       },
       value: () => {
-        return `<span slot="value">${escape(metrics.latest ? formatInr(metrics.latest.networth) : "--")}</span>`;
+        return `<span slot="value">${escape(liquidNetworthValue === null ? "--" : formatInr(liquidNetworthValue))}</span>`;
       }
     }
   )}`;
