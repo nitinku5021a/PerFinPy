@@ -39,7 +39,7 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
   })}</nav></aside>`;
 });
 const Layout = create_ssr_component(($$result, $$props, $$bindings, slots) => {
-  return `<div class="shell">${validate_component(Sidebar, "Sidebar").$$render($$result, {}, {}, {})} <div class="main"><main class="content">${slots.default ? slots.default({}) : ``}</main></div></div>`;
+  return `<div class="${["shell", ""].join(" ").trim()}"><header class="mobile-header"><button class="menu-btn" data-svelte-h="svelte-11gexqf">☰</button> <div class="brand" data-svelte-h="svelte-1pfzcxj">PerFinPy</div> <div style="width: 24px;"></div> </header> <div class="sidebar-overlay"></div> ${validate_component(Sidebar, "Sidebar").$$render($$result, {}, {}, {})} <div class="main"><main class="content">${slots.default ? slots.default({}) : ``}</main></div></div>`;
 });
 export {
   Layout as default

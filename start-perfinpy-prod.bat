@@ -9,6 +9,6 @@ if not exist "%CMD%" (
   exit /b 1
 )
 
-start "PerFinPy Production" /D "%ROOT%" "%CMD%"
+powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process -WindowStyle Hidden -WorkingDirectory '%ROOT%' -FilePath 'cmd.exe' -ArgumentList '/c ""%CMD%""'"
 
 endlocal
