@@ -4,7 +4,14 @@ Supports hierarchical account format: "TopLevel:MiddleLevel:Account"
 """
 from datetime import datetime, date
 from app import db
-from app.models import Account, JournalEntry, TransactionLine, AccountType
+from app.models import (
+    Account,
+    JournalEntry,
+    TransactionLine,
+    AccountType,
+    MonthlyBudget,
+    BudgetEntryAssignment
+)
 from app.services import snapshots_service
 
 
@@ -120,6 +127,42 @@ def detect_account_type(path_str, default='Asset'):
     if any(k in top for k in ['expense', 'expenses', 'cost']):
         return 'Expense'
     return default
+
+
+def _parse_month_cell(value):
+    if value is None or value == '':
+        return None
+    if isinstance(value, datetime):
+        d = value.date()
+        return date(d.year, d.month, 1)
+    if isinstance(value, date):
+        return date(value.year, value.month, 1)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.strptime(text, '%Y-%m')
+        return date(parsed.year, parsed.month, 1)
+    except Exception:
+        parsed = datetime.strptime(text.split()[0], '%Y-%m-%d')
+        return date(parsed.year, parsed.month, 1)
+
+
+def _parse_date_cell(value):
+    if value is None or value == '':
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text, '%Y-%m-%d').date()
+    except Exception:
+        from dateutil import parser as _parser
+        return _parser.parse(text, dayfirst=True).date()
 
 
 def parse_transaction_row(row, row_num):
@@ -328,6 +371,90 @@ def import_transactions_from_excel(file_stream):
             db.session.commit()
             # After bulk import, rebuild snapshots to guarantee consistency
             snapshots_service.backfill_snapshots(db.session)
+
+        # Import Monthly Budget settings, if present
+        if 'Monthly Budget' in workbook.sheetnames:
+            mb_ws = workbook['Monthly Budget']
+            for row_idx, row in enumerate(mb_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    month_val = _parse_month_cell(row[0])
+                    if not month_val:
+                        raise ValueError("Month is required")
+                    budget_amount = float(row[1] or 0.0)
+                    guchi_opening = float(row[2] or 0.0)
+                    gunu_opening = float(row[3] or 0.0)
+                    mb = MonthlyBudget.query.filter_by(month=month_val).first()
+                    if mb:
+                        mb.budget_amount = budget_amount
+                        mb.guchi_opening_balance = guchi_opening
+                        mb.gunu_opening_balance = gunu_opening
+                    else:
+                        mb = MonthlyBudget(
+                            month=month_val,
+                            budget_amount=budget_amount,
+                            guchi_opening_balance=guchi_opening,
+                            gunu_opening_balance=gunu_opening
+                        )
+                        db.session.add(mb)
+                except Exception as e:
+                    results['warnings'].append(f"Monthly Budget row {row_idx}: {str(e)}")
+
+        # Import Budget Assignments, if present
+        if 'Budget Assignments' in workbook.sheetnames:
+            ba_ws = workbook['Budget Assignments']
+            valid_owners = {'Guchi', 'Gunu', 'None'}
+            for row_idx, row in enumerate(ba_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    month_val = _parse_month_cell(row[0])
+                    if not month_val:
+                        raise ValueError("Month is required")
+
+                    je_id_raw = row[1]
+                    entry_date = _parse_date_cell(row[2])
+                    description = str(row[3] or '').strip()
+                    owner = str(row[4] or 'None').strip() or 'None'
+                    if owner not in valid_owners:
+                        raise ValueError(f"Invalid owner '{owner}'")
+
+                    je = None
+                    if je_id_raw is not None and str(je_id_raw).strip() != '':
+                        try:
+                            je = JournalEntry.query.get(int(je_id_raw))
+                        except Exception:
+                            je = None
+
+                    if je is None:
+                        q = JournalEntry.query
+                        if entry_date:
+                            q = q.filter(JournalEntry.entry_date == entry_date)
+                        if description:
+                            q = q.filter(db.func.lower(JournalEntry.description) == description.lower())
+                        je = q.order_by(JournalEntry.id.asc()).first()
+
+                    if je is None:
+                        raise ValueError("Journal Entry not found")
+
+                    assignment = BudgetEntryAssignment.query.filter_by(
+                        month=month_val,
+                        journal_entry_id=je.id
+                    ).first()
+                    if assignment:
+                        assignment.owner = owner
+                    else:
+                        assignment = BudgetEntryAssignment(
+                            month=month_val,
+                            journal_entry_id=je.id,
+                            owner=owner
+                        )
+                        db.session.add(assignment)
+                except Exception as e:
+                    results['warnings'].append(f"Budget Assignments row {row_idx}: {str(e)}")
+
+        db.session.commit()
         
         results['total_rows'] = rows_processed
         

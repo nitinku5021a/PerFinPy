@@ -1,9 +1,17 @@
 from datetime import datetime
 from app import db
 from sqlalchemy import case, select
-from app.models import Account, JournalEntry, TransactionLine, AccountType, JournalEntryEditLog, DailyAccountBalance
+from app.models import (
+    Account,
+    JournalEntry,
+    TransactionLine,
+    AccountType,
+    JournalEntryEditLog,
+    DailyAccountBalance,
+    MonthlyBudget,
+    BudgetEntryAssignment
+)
 from app.services.serialization import account_to_dict, entry_to_dict, isoformat_or_none
-from app.utils.excel_import import import_transactions_from_excel
 
 
 def list_transactions(page, period, account_id):
@@ -519,6 +527,7 @@ def edit_account(account_id, form):
 
 
 def import_transactions(file_storage):
+    from app.utils.excel_import import import_transactions_from_excel
     if file_storage is None:
         raise ValueError('No file selected')
     if file_storage.filename == '':
@@ -554,6 +563,12 @@ def export_transactions(period):
 
     accounts_ws = wb.create_sheet('Accounts')
     accounts_ws.append(['Account Path', 'Opening Balance', 'Account Type', 'Code', 'Description'])
+
+    monthly_budget_ws = wb.create_sheet('Monthly Budget')
+    monthly_budget_ws.append(['Month', 'Budget Amount', 'Guchi Opening Balance', 'Gunu Opening Balance'])
+
+    budget_assignments_ws = wb.create_sheet('Budget Assignments')
+    budget_assignments_ws.append(['Month', 'JE ID', 'Entry Date', 'Description', 'Owner'])
     accounts = Account.query.order_by(Account.account_type.asc(), Account.parent_id.asc(), Account.name.asc()).all()
 
     for a in accounts:
@@ -570,6 +585,30 @@ def export_transactions(period):
         else:
             for l in je.transaction_lines:
                 complex_ws.append([je.id, je.entry_date.strftime('%d-%m-%Y'), je.description or '', l.account.get_export_path(), l.line_type, l.amount])
+
+    monthly_budgets = MonthlyBudget.query.order_by(MonthlyBudget.month.asc()).all()
+    for mb in monthly_budgets:
+        monthly_budget_ws.append([
+            mb.month.strftime('%Y-%m') if mb.month else '',
+            float(mb.budget_amount or 0.0),
+            float(mb.guchi_opening_balance or 0.0),
+            float(mb.gunu_opening_balance or 0.0)
+        ])
+
+    assignments = (
+        db.session.query(BudgetEntryAssignment, JournalEntry)
+        .join(JournalEntry, JournalEntry.id == BudgetEntryAssignment.journal_entry_id)
+        .order_by(BudgetEntryAssignment.month.asc(), BudgetEntryAssignment.journal_entry_id.asc())
+        .all()
+    )
+    for item, je in assignments:
+        budget_assignments_ws.append([
+            item.month.strftime('%Y-%m') if item.month else '',
+            item.journal_entry_id,
+            je.entry_date.strftime('%Y-%m-%d') if je and je.entry_date else '',
+            je.description if je else '',
+            item.owner or 'None'
+        ])
 
     stream = BytesIO()
     wb.save(stream)
