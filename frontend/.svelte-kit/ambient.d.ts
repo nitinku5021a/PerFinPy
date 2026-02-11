@@ -40,6 +40,7 @@ declare module '$env/static/private' {
 	export const EFC_7156_1592913036: string;
 	export const EFC_7156_2283032206: string;
 	export const EFC_7156_2775293581: string;
+	export const EFC_7156_344590478: string;
 	export const EFC_7156_3789132940: string;
 	export const FPS_BROWSER_APP_PROFILE_STRING: string;
 	export const FPS_BROWSER_USER_PROFILE_STRING: string;
@@ -149,6 +150,7 @@ declare module '$env/dynamic/private' {
 		EFC_7156_1592913036: string;
 		EFC_7156_2283032206: string;
 		EFC_7156_2775293581: string;
+		EFC_7156_344590478: string;
 		EFC_7156_3789132940: string;
 		FPS_BROWSER_APP_PROFILE_STRING: string;
 		FPS_BROWSER_USER_PROFILE_STRING: string;

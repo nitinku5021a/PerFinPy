@@ -603,6 +603,10 @@ a:hover {
   color: #b42318;
 }
 
+.report-year-row td {
+  font-weight: 700;
+}
+
 .card,
 .badge,
 .chip {

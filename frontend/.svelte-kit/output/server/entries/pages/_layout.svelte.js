@@ -13,6 +13,11 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
       label: "Investments"
     },
     {
+      href: "/monthly-budget",
+      label: "Monthly Budget"
+    },
+    { href: "/report", label: "Report" },
+    {
       href: "/wealth-report",
       label: "Wealth Report"
     },

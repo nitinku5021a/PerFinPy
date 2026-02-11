@@ -40,6 +40,12 @@ def networth_monthly():
     return jsonify(payload)
 
 
+@bp.route('/expense-income-asset')
+def expense_income_asset():
+    payload = reports_service.expense_income_asset_report()
+    return jsonify(payload)
+
+
 @bp.route('/investment-flows')
 def investment_flows():
     account_ids_raw = request.args.get('account_ids', '').strip()

@@ -7,6 +7,8 @@
     { href: "/ledger", label: "Ledger" },
     { href: "/networth", label: "Net Worth" },
     { href: "/investments", label: "Investments" },
+    { href: "/monthly-budget", label: "Monthly Budget" },
+    { href: "/report", label: "Report" },
     { href: "/wealth-report", label: "Wealth Report" },
     { href: "/income-statement", label: "Income Statement" },
     { href: "/trial-balance", label: "Trial Balance" },

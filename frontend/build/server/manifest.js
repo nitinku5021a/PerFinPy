@@ -10,21 +10,23 @@ return {
 	assets: new Set([]),
 	mimeTypes: {},
 	_: {
-		client: {"start":"_app/immutable/entry/start.BXIcOP6r.js","app":"_app/immutable/entry/app.B_lMbsug.js","imports":["_app/immutable/entry/start.BXIcOP6r.js","_app/immutable/chunks/entry.DCHRB2Wd.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/entry/app.B_lMbsug.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/chunks/index.MzSWilh2.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
+		client: {"start":"_app/immutable/entry/start.CNiO-vyU.js","app":"_app/immutable/entry/app.CjtvZpj_.js","imports":["_app/immutable/entry/start.CNiO-vyU.js","_app/immutable/chunks/entry.B2FiEG4b.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/entry/app.CjtvZpj_.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/chunks/index.CHNVHMIA.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
 		nodes: [
-			__memo(() => import('./chunks/0-C1-5Qhke.js')),
-			__memo(() => import('./chunks/1-CTWYp9Qq.js')),
-			__memo(() => import('./chunks/2-0-OAZk2M.js')),
-			__memo(() => import('./chunks/3-Bz4WU2Nd.js')),
-			__memo(() => import('./chunks/4-oUUb4CZW.js')),
-			__memo(() => import('./chunks/5-CFmtHNdz.js')),
-			__memo(() => import('./chunks/6-C-AiMz6s.js')),
-			__memo(() => import('./chunks/7-DMDmhAbq.js')),
-			__memo(() => import('./chunks/8-OFnWQhyY.js')),
-			__memo(() => import('./chunks/9-B9lmKDQN.js')),
-			__memo(() => import('./chunks/10-BaWiEovM.js')),
-			__memo(() => import('./chunks/11-DsXKTP9a.js')),
-			__memo(() => import('./chunks/12-CmUQXIOs.js'))
+			__memo(() => import('./chunks/0-BarOpJmf.js')),
+			__memo(() => import('./chunks/1-SbIc9fWZ.js')),
+			__memo(() => import('./chunks/2-CLDiMu3P.js')),
+			__memo(() => import('./chunks/3-DO93VTMA.js')),
+			__memo(() => import('./chunks/4-CY4dZVUj.js')),
+			__memo(() => import('./chunks/5-BaTBMzcI.js')),
+			__memo(() => import('./chunks/6-CJl_bVCa.js')),
+			__memo(() => import('./chunks/7-FxCLMy5L.js')),
+			__memo(() => import('./chunks/8-oQ1Elran.js')),
+			__memo(() => import('./chunks/9-C2_Mzn_d.js')),
+			__memo(() => import('./chunks/10-Bovs4kdl.js')),
+			__memo(() => import('./chunks/11-Dl3T94I5.js')),
+			__memo(() => import('./chunks/12-CFSuSE1L.js')),
+			__memo(() => import('./chunks/13-BirVkI9i.js')),
+			__memo(() => import('./chunks/14-Dj-KTPZ0.js'))
 		],
 		routes: [
 			{
@@ -77,31 +79,45 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/monthly-budget",
+				pattern: /^\/monthly-budget\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				endpoint: null
+			},
+			{
 				id: "/networth",
 				pattern: /^\/networth\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				endpoint: null
+			},
+			{
+				id: "/report",
+				pattern: /^\/report\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 11 },
 				endpoint: null
 			},
 			{
 				id: "/transactions",
 				pattern: /^\/transactions\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				page: { layouts: [0,], errors: [1,], leaf: 12 },
 				endpoint: null
 			},
 			{
 				id: "/trial-balance",
 				pattern: /^\/trial-balance\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				page: { layouts: [0,], errors: [1,], leaf: 13 },
 				endpoint: null
 			},
 			{
 				id: "/wealth-report",
 				pattern: /^\/wealth-report\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 12 },
+				page: { layouts: [0,], errors: [1,], leaf: 14 },
 				endpoint: null
 			}
 		],

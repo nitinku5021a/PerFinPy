@@ -93,7 +93,7 @@
       "_stores.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.Q8vN-B5e.css"
+      "_app/immutable/assets/_layout.5H1aojsZ.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -170,6 +170,15 @@
       "_Table.js"
     ]
   },
+  "src/routes/monthly-budget/+page.svelte": {
+    "file": "entries/pages/monthly-budget/_page.svelte.js",
+    "name": "entries/pages/monthly-budget/_page.svelte",
+    "src": "src/routes/monthly-budget/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
+    ]
+  },
   "src/routes/networth/+page.svelte": {
     "file": "entries/pages/networth/_page.svelte.js",
     "name": "entries/pages/networth/_page.svelte",
@@ -179,6 +188,15 @@
       "_ssr.js",
       "_NetworthMatrixTable.js",
       "_format.js"
+    ]
+  },
+  "src/routes/report/+page.svelte": {
+    "file": "entries/pages/report/_page.svelte.js",
+    "name": "entries/pages/report/_page.svelte",
+    "src": "src/routes/report/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
     ]
   },
   "src/routes/transactions/+page.svelte": {

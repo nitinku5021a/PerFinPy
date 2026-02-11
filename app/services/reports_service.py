@@ -682,6 +682,159 @@ def networth_monthly_series_report():
     return {'months': series}
 
 
+def expense_income_asset_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': [], 'years': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    income_accounts = Account.query.filter_by(account_type='Income').all()
+    expense_accounts = Account.query.filter_by(account_type='Expense').all()
+    asset_accounts = Account.query.filter_by(account_type='Asset').all()
+
+    income_ids = [a.id for a in income_accounts]
+    expense_ids = [a.id for a in expense_accounts]
+    asset_ids = [a.id for a in asset_accounts]
+    asset_opening = {a.id: (a.opening_balance or 0.0) for a in asset_accounts}
+
+    rows = []
+    for month in months:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+
+        income_sums = {}
+        if income_ids:
+            income_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(income_ids))
+                .filter(DailyAccountBalance.date >= month_start)
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            income_sums = {row[0]: row[1] for row in income_rows}
+
+        expense_sums = {}
+        if expense_ids:
+            expense_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(expense_ids))
+                .filter(DailyAccountBalance.date >= month_start)
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            expense_sums = {row[0]: row[1] for row in expense_rows}
+
+        asset_cumulative = {}
+        if asset_ids:
+            asset_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(asset_ids))
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            asset_cumulative = {row[0]: row[1] for row in asset_rows}
+
+        sum_income = sum(abs(income_sums.get(acc_id, 0.0)) for acc_id in income_ids)
+        sum_expense = -sum(abs(expense_sums.get(acc_id, 0.0)) for acc_id in expense_ids)
+        max_asset = sum(asset_opening.get(acc_id, 0.0) + asset_cumulative.get(acc_id, 0.0) for acc_id in asset_ids)
+        savings = sum_income + sum_expense
+        savings_pct_income = None
+        if abs(sum_income) > 0.00001:
+            savings_pct_income = (savings / sum_income) * 100.0
+        savings_pct_expense = None
+        if abs(sum_expense) > 0.00001:
+            savings_pct_expense = (savings / abs(sum_expense)) * 100.0
+
+        rows.append({
+            'month': month.strftime('%Y-%m'),
+            'year': month.year,
+            'month_number': month.month,
+            'sum_income': sum_income,
+            'sum_expense': sum_expense,
+            'max_asset': max_asset,
+            'rolling_avg_expense': None,
+            'asset_mom_change_pct': None,
+            'asset_yoy_change_pct': None,
+            'savings_pct_income': savings_pct_income,
+            'savings_pct_expense': savings_pct_expense
+        })
+
+    month_index = {row['month']: idx for idx, row in enumerate(rows)}
+    for idx, row in enumerate(rows):
+        # Rolling 12-month average expense (monthly only)
+        start_idx = max(0, idx - 11)
+        window = rows[start_idx:idx + 1]
+        if window:
+            row['rolling_avg_expense'] = sum(item['sum_expense'] for item in window) / len(window)
+
+        # Max asset month-over-month percentage change
+        if idx > 0:
+            prev_asset = rows[idx - 1]['max_asset']
+            if abs(prev_asset) > 0.00001:
+                row['asset_mom_change_pct'] = ((row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+
+        # Max asset percentage change vs same month previous year
+        year = row['year']
+        month_num = row['month_number']
+        prev_key = f"{year - 1}-{month_num:02d}"
+        prev_idx = month_index.get(prev_key)
+        if prev_idx is not None:
+            prev_asset = rows[prev_idx]['max_asset']
+            if abs(prev_asset) > 0.00001:
+                row['asset_yoy_change_pct'] = ((row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+
+    yearly = {}
+    for row in rows:
+        year = row['year']
+        if year not in yearly:
+            yearly[year] = {
+                'year': year,
+                'sum_income': 0.0,
+                'sum_expense': 0.0,
+                'max_asset': row['max_asset']
+            }
+        yearly[year]['sum_income'] += row['sum_income']
+        yearly[year]['sum_expense'] += row['sum_expense']
+        yearly[year]['max_asset'] = max(yearly[year]['max_asset'], row['max_asset'])
+
+    year_rows = [yearly[year] for year in sorted(yearly.keys())]
+    prev_year = None
+    for year_row in year_rows:
+        year_savings = year_row['sum_income'] + year_row['sum_expense']
+        year_row['rolling_avg_expense'] = None
+        year_row['asset_mom_change_pct'] = None
+        year_row['asset_yoy_change_pct'] = None
+        year_row['savings_pct_income'] = None
+        if abs(year_row['sum_income']) > 0.00001:
+            year_row['savings_pct_income'] = (year_savings / year_row['sum_income']) * 100.0
+        year_row['savings_pct_expense'] = None
+        if abs(year_row['sum_expense']) > 0.00001:
+            year_row['savings_pct_expense'] = (year_savings / abs(year_row['sum_expense'])) * 100.0
+        if prev_year is not None:
+            prev_asset = prev_year['max_asset']
+            if abs(prev_asset) > 0.00001:
+                year_row['asset_yoy_change_pct'] = ((year_row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+        prev_year = year_row
+
+    return {'months': rows, 'years': year_rows}
+
+
 def investment_flows_report(account_ids, months=13):
     if not account_ids:
         return {'months': []}

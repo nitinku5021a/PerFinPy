@@ -159,6 +159,60 @@ class DailyAccountBalance(db.Model):
         return f'<DailyAccountBalance {self.date} acc={self.account_id} bal={self.balance}>'
 
 
+class MonthlyBudget(db.Model):
+    """Monthly household budget settings."""
+    __tablename__ = 'monthly_budget'
+
+    id = db.Column(db.Integer, primary_key=True)
+    month = db.Column(db.Date, nullable=False, unique=True, index=True)  # first day of month
+    budget_amount = db.Column(db.Float, nullable=False, default=0.0)
+    guchi_opening_balance = db.Column(db.Float, nullable=False, default=0.0)
+    gunu_opening_balance = db.Column(db.Float, nullable=False, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MonthlyBudget {self.month} budget={self.budget_amount}>'
+
+
+class BudgetLineAssignment(db.Model):
+    """Owner assignment for a transaction line in a given month."""
+    __tablename__ = 'budget_line_assignment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    month = db.Column(db.Date, nullable=False, index=True)  # first day of month
+    transaction_line_id = db.Column(db.Integer, db.ForeignKey('transaction_lines.id'), nullable=False, index=True)
+    owner = db.Column(db.String(10), nullable=False, default='None')  # Guchi, Gunu, None
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('month', 'transaction_line_id', name='uq_budget_month_line'),
+    )
+
+    def __repr__(self):
+        return f'<BudgetLineAssignment month={self.month} line={self.transaction_line_id} owner={self.owner}>'
+
+
+class BudgetEntryAssignment(db.Model):
+    """Owner assignment for a journal entry in a given month."""
+    __tablename__ = 'budget_entry_assignment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    month = db.Column(db.Date, nullable=False, index=True)  # first day of month
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entries.id'), nullable=False, index=True)
+    owner = db.Column(db.String(10), nullable=False, default='None')  # Guchi, Gunu, None
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('month', 'journal_entry_id', name='uq_budget_month_entry'),
+    )
+
+    def __repr__(self):
+        return f'<BudgetEntryAssignment month={self.month} entry={self.journal_entry_id} owner={self.owner}>'
+
+
 class MonthlyNetWorth(db.Model):
     """Monthly net worth snapshot."""
     __tablename__ = 'monthly_networth'

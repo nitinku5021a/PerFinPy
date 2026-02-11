@@ -12,7 +12,17 @@ def create_app(config_class=Config):
 
     with app.app_context():
         # Import models
-        from app.models import Account, JournalEntry, TransactionLine, DailyAccountBalance, MonthlyNetWorth, MonthlyPnL
+        from app.models import (
+            Account,
+            JournalEntry,
+            TransactionLine,
+            DailyAccountBalance,
+            MonthlyNetWorth,
+            MonthlyPnL,
+            MonthlyBudget,
+            BudgetLineAssignment,
+            BudgetEntryAssignment
+        )
         
         # Create tables
         db.create_all()
@@ -33,9 +43,10 @@ def create_app(config_class=Config):
             db.session.rollback()
     
     # Register blueprints
-    from app.routes import main, transactions, reports
+    from app.routes import main, transactions, reports, budget
     app.register_blueprint(main.bp)
     app.register_blueprint(transactions.bp)
     app.register_blueprint(reports.bp)
+    app.register_blueprint(budget.bp)
     
     return app
