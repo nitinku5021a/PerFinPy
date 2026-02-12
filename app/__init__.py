@@ -21,7 +21,9 @@ def create_app(config_class=Config):
             MonthlyPnL,
             MonthlyBudget,
             BudgetLineAssignment,
-            BudgetEntryAssignment
+            BudgetEntryAssignment,
+            ReminderTask,
+            ReminderOccurrence
         )
         
         # Create tables
@@ -43,10 +45,11 @@ def create_app(config_class=Config):
             db.session.rollback()
     
     # Register blueprints
-    from app.routes import main, transactions, reports, budget
+    from app.routes import main, transactions, reports, budget, reminders
     app.register_blueprint(main.bp)
     app.register_blueprint(transactions.bp)
     app.register_blueprint(reports.bp)
     app.register_blueprint(budget.bp)
+    app.register_blueprint(reminders.bp)
     
     return app

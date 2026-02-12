@@ -213,6 +213,52 @@ class BudgetEntryAssignment(db.Model):
         return f'<BudgetEntryAssignment month={self.month} entry={self.journal_entry_id} owner={self.owner}>'
 
 
+class ReminderTask(db.Model):
+    """Recurring monthly reminder template."""
+    __tablename__ = 'reminder_task'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    due_day_of_month = db.Column(db.Integer, nullable=False)  # 1..31
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    occurrences = db.relationship(
+        'ReminderOccurrence',
+        backref='task',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
+
+    def __repr__(self):
+        return f'<ReminderTask {self.id} {self.title}>'
+
+
+class ReminderOccurrence(db.Model):
+    """Per-month generated reminder instance."""
+    __tablename__ = 'reminder_occurrence'
+
+    id = db.Column(db.Integer, primary_key=True)
+    reminder_task_id = db.Column(db.Integer, db.ForeignKey('reminder_task.id'), nullable=False, index=True)
+    month = db.Column(db.Date, nullable=False, index=True)  # first day of month
+    due_date = db.Column(db.Date, nullable=False)
+    is_done = db.Column(db.Boolean, default=False, nullable=False)
+    done_at = db.Column(db.DateTime, nullable=True)
+    is_removed = db.Column(db.Boolean, default=False, nullable=False)
+    removed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('reminder_task_id', 'month', name='uq_reminder_task_month'),
+    )
+
+    def __repr__(self):
+        return f'<ReminderOccurrence task={self.reminder_task_id} month={self.month} done={self.is_done}>'
+
+
 class MonthlyNetWorth(db.Model):
     """Monthly net worth snapshot."""
     __tablename__ = 'monthly_networth'

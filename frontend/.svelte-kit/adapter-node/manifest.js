@@ -10,7 +10,7 @@ return {
 	assets: new Set([]),
 	mimeTypes: {},
 	_: {
-		client: {"start":"_app/immutable/entry/start.CFr6F8Kw.js","app":"_app/immutable/entry/app.hOsf5HV7.js","imports":["_app/immutable/entry/start.CFr6F8Kw.js","_app/immutable/chunks/entry.pU_eHD8N.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/entry/app.hOsf5HV7.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/chunks/index.CHNVHMIA.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
+		client: {"start":"_app/immutable/entry/start.CpBfeqJO.js","app":"_app/immutable/entry/app.LI1MXVul.js","imports":["_app/immutable/entry/start.CpBfeqJO.js","_app/immutable/chunks/entry.DKnIrrsE.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/entry/app.LI1MXVul.js","_app/immutable/chunks/scheduler.WTed_iOu.js","_app/immutable/chunks/index.CHNVHMIA.js"],"stylesheets":[],"fonts":[],"uses_env_dynamic_public":false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -26,7 +26,8 @@ return {
 			__memo(() => import('./nodes/11.js')),
 			__memo(() => import('./nodes/12.js')),
 			__memo(() => import('./nodes/13.js')),
-			__memo(() => import('./nodes/14.js'))
+			__memo(() => import('./nodes/14.js')),
+			__memo(() => import('./nodes/15.js'))
 		],
 		routes: [
 			{
@@ -93,31 +94,38 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/reminders",
+				pattern: /^\/reminders\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				endpoint: null
+			},
+			{
 				id: "/report",
 				pattern: /^\/report\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				page: { layouts: [0,], errors: [1,], leaf: 12 },
 				endpoint: null
 			},
 			{
 				id: "/transactions",
 				pattern: /^\/transactions\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 12 },
+				page: { layouts: [0,], errors: [1,], leaf: 13 },
 				endpoint: null
 			},
 			{
 				id: "/trial-balance",
 				pattern: /^\/trial-balance\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 13 },
+				page: { layouts: [0,], errors: [1,], leaf: 14 },
 				endpoint: null
 			},
 			{
 				id: "/wealth-report",
 				pattern: /^\/wealth-report\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 14 },
+				page: { layouts: [0,], errors: [1,], leaf: 15 },
 				endpoint: null
 			}
 		],

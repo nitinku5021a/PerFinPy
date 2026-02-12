@@ -1,6 +1,6 @@
 {
   ".svelte-kit/generated/client-optimized/app.js": {
-    "file": "_app/immutable/entry/app.hOsf5HV7.js",
+    "file": "_app/immutable/entry/app.LI1MXVul.js",
     "name": "entry/app",
     "src": ".svelte-kit/generated/client-optimized/app.js",
     "isEntry": true,
@@ -23,11 +23,12 @@
       ".svelte-kit/generated/client-optimized/nodes/11.js",
       ".svelte-kit/generated/client-optimized/nodes/12.js",
       ".svelte-kit/generated/client-optimized/nodes/13.js",
-      ".svelte-kit/generated/client-optimized/nodes/14.js"
+      ".svelte-kit/generated/client-optimized/nodes/14.js",
+      ".svelte-kit/generated/client-optimized/nodes/15.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/0.js": {
-    "file": "_app/immutable/nodes/0.BpLmG31T.js",
+    "file": "_app/immutable/nodes/0.BrEciDCn.js",
     "name": "nodes/0",
     "src": ".svelte-kit/generated/client-optimized/nodes/0.js",
     "isEntry": true,
@@ -36,14 +37,14 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_stores.BMM6FO85.js"
+      "_stores.BUu9C8aI.js"
     ],
     "css": [
       "_app/immutable/assets/0.CzXAoCGc.css"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/1.js": {
-    "file": "_app/immutable/nodes/1.C4FrZPM8.js",
+    "file": "_app/immutable/nodes/1.BGx8LSOu.js",
     "name": "nodes/1",
     "src": ".svelte-kit/generated/client-optimized/nodes/1.js",
     "isEntry": true,
@@ -51,11 +52,11 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_stores.BMM6FO85.js"
+      "_stores.BUu9C8aI.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/10.js": {
-    "file": "_app/immutable/nodes/10.yV-9huwu.js",
+    "file": "_app/immutable/nodes/10.DF34-VX8.js",
     "name": "nodes/10",
     "src": ".svelte-kit/generated/client-optimized/nodes/10.js",
     "isEntry": true,
@@ -63,12 +64,13 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_format.CiBvMxZZ.js",
-      "_NetworthMatrixTable.MytoTF9j.js"
+      "_api.DuEoMS5X.js",
+      "_NetworthMatrixTable.MytoTF9j.js",
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/11.js": {
-    "file": "_app/immutable/nodes/11.DmO3vMfU.js",
+    "file": "_app/immutable/nodes/11.DDycwsG8.js",
     "name": "nodes/11",
     "src": ".svelte-kit/generated/client-optimized/nodes/11.js",
     "isEntry": true,
@@ -77,11 +79,11 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js"
+      "_api.DuEoMS5X.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/12.js": {
-    "file": "_app/immutable/nodes/12.xffSb9EC.js",
+    "file": "_app/immutable/nodes/12.BG_gz_Dl.js",
     "name": "nodes/12",
     "src": ".svelte-kit/generated/client-optimized/nodes/12.js",
     "isEntry": true,
@@ -90,13 +92,12 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js",
-      "_period.ClbncGIq.js",
-      "_Table.BEi4urFf.js"
+      "_api.DuEoMS5X.js",
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/13.js": {
-    "file": "_app/immutable/nodes/13.DPlTaTYi.js",
+    "file": "_app/immutable/nodes/13.Jronm7UI.js",
     "name": "nodes/13",
     "src": ".svelte-kit/generated/client-optimized/nodes/13.js",
     "isEntry": true,
@@ -104,13 +105,15 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_format.CiBvMxZZ.js",
+      "_each.D6YF6ztN.js",
+      "_api.DuEoMS5X.js",
+      "_period.ClbncGIq.js",
       "_Table.BEi4urFf.js",
-      "_period.ClbncGIq.js"
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/14.js": {
-    "file": "_app/immutable/nodes/14.SIyfW8OD.js",
+    "file": "_app/immutable/nodes/14.D2ZKWOZ3.js",
     "name": "nodes/14",
     "src": ".svelte-kit/generated/client-optimized/nodes/14.js",
     "isEntry": true,
@@ -118,8 +121,24 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
+      "_api.DuEoMS5X.js",
+      "_Table.BEi4urFf.js",
+      "_period.ClbncGIq.js",
+      "_format.CT4jziiX.js"
+    ]
+  },
+  ".svelte-kit/generated/client-optimized/nodes/15.js": {
+    "file": "_app/immutable/nodes/15.Bi0yNuUj.js",
+    "name": "nodes/15",
+    "src": ".svelte-kit/generated/client-optimized/nodes/15.js",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_scheduler.WTed_iOu.js",
+      "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js",
+      "_api.DuEoMS5X.js",
+      "_format.CT4jziiX.js",
       "_financeMetrics.Df6I7JDk.js",
       "_investmentMetrics.xWwPcmhB.js"
     ]
@@ -136,7 +155,7 @@
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/3.js": {
-    "file": "_app/immutable/nodes/3.QHLkme8W.js",
+    "file": "_app/immutable/nodes/3.B21iOJn5.js",
     "name": "nodes/3",
     "src": ".svelte-kit/generated/client-optimized/nodes/3.js",
     "isEntry": true,
@@ -145,12 +164,13 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js",
-      "_Table.BEi4urFf.js"
+      "_api.DuEoMS5X.js",
+      "_Table.BEi4urFf.js",
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/4.js": {
-    "file": "_app/immutable/nodes/4.BQNVKpFL.js",
+    "file": "_app/immutable/nodes/4.S8mesKaE.js",
     "name": "nodes/4",
     "src": ".svelte-kit/generated/client-optimized/nodes/4.js",
     "isEntry": true,
@@ -158,13 +178,14 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_format.CiBvMxZZ.js",
+      "_api.DuEoMS5X.js",
+      "_format.CT4jziiX.js",
       "_financeMetrics.Df6I7JDk.js",
       "_each.D6YF6ztN.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/5.js": {
-    "file": "_app/immutable/nodes/5.CtQ1Oj04.js",
+    "file": "_app/immutable/nodes/5.DAMrzmLO.js",
     "name": "nodes/5",
     "src": ".svelte-kit/generated/client-optimized/nodes/5.js",
     "isEntry": true,
@@ -172,12 +193,13 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_format.CiBvMxZZ.js",
-      "_NetworthMatrixTable.MytoTF9j.js"
+      "_api.DuEoMS5X.js",
+      "_NetworthMatrixTable.MytoTF9j.js",
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/6.js": {
-    "file": "_app/immutable/nodes/6.AqkkTvuA.js",
+    "file": "_app/immutable/nodes/6.B3D4AiFo.js",
     "name": "nodes/6",
     "src": ".svelte-kit/generated/client-optimized/nodes/6.js",
     "isEntry": true,
@@ -186,12 +208,13 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js",
+      "_api.DuEoMS5X.js",
+      "_format.CT4jziiX.js",
       "_investmentMetrics.xWwPcmhB.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/7.js": {
-    "file": "_app/immutable/nodes/7.DUuOzOmh.js",
+    "file": "_app/immutable/nodes/7.Dg9mCSxP.js",
     "name": "nodes/7",
     "src": ".svelte-kit/generated/client-optimized/nodes/7.js",
     "isEntry": true,
@@ -200,14 +223,15 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js",
+      "_api.DuEoMS5X.js",
       "_period.ClbncGIq.js",
       "_Table.BEi4urFf.js",
-      "_stores.BMM6FO85.js"
+      "_stores.BUu9C8aI.js",
+      "_format.CT4jziiX.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/8.js": {
-    "file": "_app/immutable/nodes/8.o7cOZH_c.js",
+    "file": "_app/immutable/nodes/8.CVkGd68c.js",
     "name": "nodes/8",
     "src": ".svelte-kit/generated/client-optimized/nodes/8.js",
     "isEntry": true,
@@ -215,13 +239,14 @@
     "imports": [
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
-      "_format.CiBvMxZZ.js",
+      "_api.DuEoMS5X.js",
       "_period.ClbncGIq.js",
+      "_format.CT4jziiX.js",
       "_Table.BEi4urFf.js"
     ]
   },
   ".svelte-kit/generated/client-optimized/nodes/9.js": {
-    "file": "_app/immutable/nodes/9.CE7MNiDm.js",
+    "file": "_app/immutable/nodes/9.WspBM3Cm.js",
     "name": "nodes/9",
     "src": ".svelte-kit/generated/client-optimized/nodes/9.js",
     "isEntry": true,
@@ -230,7 +255,8 @@
       "_scheduler.WTed_iOu.js",
       "_index.CHNVHMIA.js",
       "_each.D6YF6ztN.js",
-      "_format.CiBvMxZZ.js"
+      "_api.DuEoMS5X.js",
+      "_format.CT4jziiX.js"
     ]
   },
   "_NetworthMatrixTable.MytoTF9j.js": {
@@ -251,12 +277,16 @@
       "_each.D6YF6ztN.js"
     ]
   },
+  "_api.DuEoMS5X.js": {
+    "file": "_app/immutable/chunks/api.DuEoMS5X.js",
+    "name": "api"
+  },
   "_each.D6YF6ztN.js": {
     "file": "_app/immutable/chunks/each.D6YF6ztN.js",
     "name": "each"
   },
-  "_entry.pU_eHD8N.js": {
-    "file": "_app/immutable/chunks/entry.pU_eHD8N.js",
+  "_entry.DKnIrrsE.js": {
+    "file": "_app/immutable/chunks/entry.DKnIrrsE.js",
     "name": "entry",
     "imports": [
       "_scheduler.WTed_iOu.js"
@@ -266,8 +296,8 @@
     "file": "_app/immutable/chunks/financeMetrics.Df6I7JDk.js",
     "name": "financeMetrics"
   },
-  "_format.CiBvMxZZ.js": {
-    "file": "_app/immutable/chunks/format.CiBvMxZZ.js",
+  "_format.CT4jziiX.js": {
+    "file": "_app/immutable/chunks/format.CT4jziiX.js",
     "name": "format"
   },
   "_index.CHNVHMIA.js": {
@@ -289,20 +319,20 @@
     "file": "_app/immutable/chunks/scheduler.WTed_iOu.js",
     "name": "scheduler"
   },
-  "_stores.BMM6FO85.js": {
-    "file": "_app/immutable/chunks/stores.BMM6FO85.js",
+  "_stores.BUu9C8aI.js": {
+    "file": "_app/immutable/chunks/stores.BUu9C8aI.js",
     "name": "stores",
     "imports": [
-      "_entry.pU_eHD8N.js"
+      "_entry.DKnIrrsE.js"
     ]
   },
   "node_modules/@sveltejs/kit/src/runtime/client/entry.js": {
-    "file": "_app/immutable/entry/start.CFr6F8Kw.js",
+    "file": "_app/immutable/entry/start.CpBfeqJO.js",
     "name": "entry/start",
     "src": "node_modules/@sveltejs/kit/src/runtime/client/entry.js",
     "isEntry": true,
     "imports": [
-      "_entry.pU_eHD8N.js"
+      "_entry.DKnIrrsE.js"
     ]
   }
 }

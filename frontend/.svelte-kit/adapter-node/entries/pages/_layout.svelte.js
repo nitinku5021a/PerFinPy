@@ -36,7 +36,8 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
     {
       href: "/transactions",
       label: "Transactions"
-    }
+    },
+    { href: "/reminders", label: "Reminders" }
   ];
   $$unsubscribe_page();
   return `<aside class="sidebar"><div class="brand" data-svelte-h="svelte-1pfzcxj">PerFinPy</div> <nav class="nav">${each(links, (link) => {

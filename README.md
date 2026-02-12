@@ -1,218 +1,249 @@
-﻿# PerFinPy - Personal Finance Accounting System
+# PerFinPy
 
-PerFinPy is a personal finance accounting system built with a Flask API and a SvelteKit frontend. It implements double-entry bookkeeping, provides fast financial reports using snapshot tables, and supports Excel import/export.
+PerFinPy is a personal finance app with a Flask JSON API backend and a SvelteKit frontend.
+It uses double-entry bookkeeping, snapshot tables for fast reporting, monthly budget allocation, and recurring reminders.
 
-## Features
+## Tech Stack
 
-- **Double-Entry Bookkeeping**: Every transaction is recorded as both a debit and credit
-- **Chart of Accounts**: Organize accounts by type (Asset, Liability, Equity, Income, Expense)
-- **Journal Entries**: Record financial transactions with automatic balance validation
-- **Financial Reports**:
-  - Net Worth Matrix (12-month, drill-down)
-  - Income Statement Matrix (12-month, drill-down)
-  - Trial Balance
-- **Period Filtering**: YTD, Current Month, Custom Dates
-- **Account Management**: Create and manage your chart of accounts
-- **Fast Reports**: Snapshot tables prevent scanning years of transactions
-- **Excel Import/Export**: Batch import transactions and accounts, export filtered or all data
+- Backend: Flask, Flask-SQLAlchemy, SQLAlchemy, openpyxl
+- Frontend: SvelteKit, Svelte 4, Vite, Tailwind
+- Database: SQLite by default (`accounting.db`), configurable via `DATABASE_URL`
+
+## Current Functional Scope
+
+### Accounting
+- Double-entry transaction capture (debit + credit)
+- Chart of accounts with hierarchy (group/leaf accounts)
+- Account opening balances
+- Journal entry edit logging
+- Account-level drill-down from reports
+
+### Reporting
+- Dashboard summary
+- Net worth matrix
+- Income statement matrix
+- Trial balance
+- Expense/Income/Asset rollups
+- Net worth growth and net savings series
+- Investment flow reports
+- Cashflow Sankey dataset endpoint
+
+### Monthly Budget
+- Month-wise budget settings
+- Owner assignment per entry (`Guchi`, `Gunu`, `None`)
+- Summary metrics and carry-forward behavior
+
+### Reminders
+- Recurring monthly reminder tasks
+- Auto-generation of current-month occurrences
+- Due-day fallback to month end (e.g., 31 -> Feb 28/29)
+- Mark done for current month occurrence
+- Remove only current-month occurrence
+- Delete recurring task entirely
+
+### Excel Import/Export
+- Import and export transactions
+- Import and export accounts and opening balances
+- Import and export monthly budget and budget assignments
+- Import and export reminder tasks and occurrences
 
 ## Project Structure
 
-```
+```text
 PerFinPy/
-+-- app/
-¦   +-- __init__.py               # Application factory
-¦   +-- models/                   # SQLAlchemy models
-¦   +-- routes/                   # Flask API routes
-¦   +-- services/                 # Reporting, snapshots, transactions
-+-- frontend/                     # SvelteKit UI
-+-- backfill_snapshots.py         # One-time snapshot backfill
-+-- config.py                     # Configuration settings
-+-- run.py                        # Flask dev entry point
-+-- requirements.txt              # Python dependencies
-+-- README.md
+|-- app/
+|   |-- __init__.py
+|   |-- models/
+|   |-- routes/
+|   |-- services/
+|   `-- utils/
+|-- frontend/
+|-- tests/
+|-- run.py
+|-- wsgi.py
+|-- requirements.txt
+|-- dev.cmd / dev.ps1
+|-- prod.cmd / prod.ps1
+`-- README.md
 ```
 
-## Database Schema (Core)
+## Key API Routes
 
-### Accounts
-- Chart of accounts
-- Fields: code, name, account_type, description, is_active, opening_balance
+### Core
+- `GET /` -> index payload
+- `GET /dashboard` -> dashboard summary
 
-### Journal Entries
-- Header information for each transaction entry
-- Fields: entry_date, description, reference, notes
+### Transactions and Accounts
+- `GET /transactions`
+- `POST /transactions/new`
+- `GET /transactions/<id>`
+- `POST /transactions/<id>/edit`
+- `GET /transactions/accounts`
+- `POST /transactions/accounts/new`
+- `POST /transactions/accounts/<id>/edit`
+- `POST /transactions/import`
+- `GET /transactions/export`
 
-### Transaction Lines
-- Individual debit or credit lines
-- Fields: account_id, line_type (DEBIT/CREDIT), amount, date, description
+### Reports
+- `GET /reports/networth`
+- `GET /reports/networth-matrix`
+- `GET /reports/income-matrix`
+- `GET /reports/income-statement`
+- `GET /reports/trial-balance`
+- `GET /reports/networth-growth`
+- `GET /reports/net-savings-series`
+- `GET /reports/networth-monthly`
+- `GET /reports/expense-income-asset`
+- `GET /reports/investment-flows`
+- `GET /reports/cashflow-sankey`
+- `GET /reports/accounts/<account_id>/entries`
 
-### Snapshot Tables
-- `daily_account_balance(date, account_id, balance)`
-- `monthly_networth(month, assets, liabilities, networth)`
-- `monthly_pnl(month, income, expense, profit)`
+### Monthly Budget
+- `GET /budget/monthly`
+- `POST /budget/monthly/settings`
+- `POST /budget/monthly/assign-owner`
 
-## Installation (Dev)
+### Reminders
+- `GET /reminders/monthly`
+- `POST /reminders/tasks`
+- `POST /reminders/occurrences/<occurrence_id>/done`
+- `DELETE /reminders/occurrences/<occurrence_id>`
+- `DELETE /reminders/tasks/<task_id>`
 
-### Prerequisites
-- Python 3.9+
-- Node.js 18+
+## Frontend Pages
 
-### Steps
+Navigation currently includes:
+- Dashboard
+- Accounts
+- Ledger
+- Net Worth
+- Investments
+- Monthly Budget
+- Report
+- Wealth Report
+- Income Statement
+- Trial Balance
+- Journal Entries
+- Transactions
+- Reminders
 
-1. **Create a virtual environment**
-   ```bash
-   python -m venv venv
-   ```
+## Database Models (High Level)
 
-2. **Activate the virtual environment**
-   - Windows:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - macOS/Linux:
-     ```bash
-     source venv/bin/activate
-     ```
+- `accounts`
+- `journal_entries`
+- `journal_entry_edit_logs`
+- `transaction_lines`
+- `daily_account_balance`
+- `monthly_networth`
+- `monthly_pnl`
+- `monthly_budget`
+- `budget_line_assignment`
+- `budget_entry_assignment`
+- `reminder_task`
+- `reminder_occurrence`
 
-3. **Install backend dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Environment Variables
 
-4. **Run the backend**
-   ```bash
-   python run.py
-   ```
+See `.env.example`.
 
-5. **Run the frontend**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+Required:
+- `DATABASE_URL`
+- `SECRET_KEY`
 
-6. **Open in browser**
-   - Frontend: `http://127.0.0.1:5173`
+Optional:
+- `APP_NAME`
+- `DEFAULT_CURRENCY`
+- `BACKEND_HOST`
+- `BACKEND_PORT`
+- `FRONTEND_HOST`
+- `FRONTEND_PORT`
+- `API_BASE_URL`
 
-## Production
+## Local Development
 
-### Backend (Flask API)
-Run with `gunicorn` behind a web server (nginx) for production:
+### Option 1: One-command (Windows)
 
+```bat
+dev.cmd
+```
+
+This will:
+- create virtual environment if needed
+- install backend/frontend dependencies
+- start Flask backend (`run.py`) and Svelte dev server
+
+### Option 2: Manual
+
+1. Create venv:
 ```bash
-gunicorn wsgi:app --bind 0.0.0.0:8000 --workers 3
+python -m venv venv
 ```
-
-### Frontend (SvelteKit)
-Build and serve the UI:
-
+2. Activate venv:
+```bash
+venv\Scripts\activate
+```
+3. Install backend deps:
+```bash
+pip install -r requirements.txt
+```
+4. Start backend:
+```bash
+python run.py
+```
+5. Start frontend:
 ```bash
 cd frontend
 npm install
-npm run build
-npm run preview -- --host 0.0.0.0 --port 5173
+npm run dev
 ```
 
-In production, serve the built frontend using a proper web server or a Node process manager.
+## Production
 
-### Environment
-Set `DATABASE_URL` to point at your production database, and set a strong `SECRET_KEY`.
+Use:
+
+```bat
+prod.cmd
+```
+
+Behavior:
+- installs dependencies
+- builds frontend
+- starts backend with `waitress` on Windows, `gunicorn` on non-Windows
+- starts SvelteKit Node server (`node build`)
+- auto-selects alternative backend/frontend ports if requested ports are in use
 
 ## Snapshots
 
-Reports use snapshot tables for performance. If you delete or replace the database, run:
+The app uses snapshot tables for reporting performance.
+If needed, backfill snapshots with:
 
 ```bash
 python backfill_snapshots.py
 ```
 
-Snapshots are also updated automatically on transaction insert.
+## Excel Workbook Compatibility
 
-## Usage
+### Export includes sheets
+- `Transactions`
+- `Complex Entries`
+- `Accounts`
+- `Monthly Budget`
+- `Budget Assignments`
+- `Reminders Tasks`
+- `Reminder Occurrences`
 
-### Creating a Chart of Accounts
+### Import behavior
+- Reads known sheets if present
+- Upserts monthly budget and budget assignments
+- Upserts reminder tasks and reminder occurrences
+- Creates missing accounts from account paths
+- Reports row-level errors/warnings in import result
 
-1. Navigate to **Accounts**
-2. Create accounts by type (Asset, Liability, Equity, Income, Expense)
-3. Use leaf accounts for posting transactions
+## Notes
 
-### Recording Transactions
-
-1. Go to **Transactions**
-2. Use the top entry bar:
-   - Date is pre-filled
-   - Type to search for debit/credit accounts (arrow keys + Enter to select)
-   - Enter amount and description
-   - Press Enter or click **Add**
-
-### Drill-Down
-
-- Clicking an **account name** opens all-time journal entries for that account.
-- Clicking a **Net Worth value** opens entries up to that month.
-- Clicking an **Income Statement value** opens entries for that month only.
-
-## Tips
-
-1. Start with a complete chart of accounts
-2. Always balance entries (system enforces this)
-3. Use meaningful descriptions for transactions
-4. Backfill snapshots if you swap the DB
+- Default DB file is `accounting.db` at repo root when `DATABASE_URL` is not set.
+- Backend exposes JSON routes; frontend proxies via `/api/*` through SvelteKit.
 
 ## License
 
-MIT License
-
-## Support
-
-For issues or questions, please refer to the Flask and SQLAlchemy documentation.
-
-## One-Command Local Dev
-
-From the repo root, run:
-
-```bash
-dev.cmd
-```
-
-This will:
-- Create a Python virtual environment (if needed)
-- Install backend and frontend dependencies
-- Start the Flask backend in the background and the SvelteKit frontend in the same terminal
-
-Frontend: `http://127.0.0.1:5173`  
-Backend: `http://127.0.0.1:5000`
-
-
-## One-Command Production
-
-From the repo root, run:
-
-```bash
-prod.cmd
-```
-
-This will:
-- Install backend and frontend dependencies
-- Build the SvelteKit production bundle (adapter-node)
-- Run the Flask API with gunicorn (Linux/macOS) or waitress (Windows)
-- Run the SvelteKit Node server
-
-Defaults (override with env vars):
-- Backend: `http://0.0.0.0:8000` via `BACKEND_HOST` / `BACKEND_PORT`
-- Frontend: `http://0.0.0.0:5173` via `FRONTEND_HOST` / `FRONTEND_PORT`
-- API Base: `API_BASE_URL` (defaults to `http://127.0.0.1:8000`)
-
-Required production env:
-- `SECRET_KEY`
-- `DATABASE_URL`
-
-## Quick Setup
-
-1. Copy `.env.example` to `.env` and fill in `DATABASE_URL` and `SECRET_KEY`.
-2. Run `dev.cmd` for local development or `prod.cmd` for production mode.
-
-Notes:
-- `.env` is not checked into Git. Keep it local or store it securely.
-- If you do not set `DATABASE_URL`, the app defaults to a local SQLite database.
-
+MIT

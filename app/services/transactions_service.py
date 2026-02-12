@@ -9,7 +9,9 @@ from app.models import (
     JournalEntryEditLog,
     DailyAccountBalance,
     MonthlyBudget,
-    BudgetEntryAssignment
+    BudgetEntryAssignment,
+    ReminderTask,
+    ReminderOccurrence
 )
 from app.services.serialization import account_to_dict, entry_to_dict, isoformat_or_none
 
@@ -569,6 +571,21 @@ def export_transactions(period):
 
     budget_assignments_ws = wb.create_sheet('Budget Assignments')
     budget_assignments_ws.append(['Month', 'JE ID', 'Entry Date', 'Description', 'Owner'])
+
+    reminder_tasks_ws = wb.create_sheet('Reminders Tasks')
+    reminder_tasks_ws.append(['Task ID', 'Title', 'Notes', 'Due Day Of Month', 'Is Active'])
+
+    reminder_occurrences_ws = wb.create_sheet('Reminder Occurrences')
+    reminder_occurrences_ws.append([
+        'Occurrence ID',
+        'Task ID',
+        'Month',
+        'Due Date',
+        'Is Done',
+        'Done At',
+        'Is Removed',
+        'Removed At'
+    ])
     accounts = Account.query.order_by(Account.account_type.asc(), Account.parent_id.asc(), Account.name.asc()).all()
 
     for a in accounts:
@@ -608,6 +625,33 @@ def export_transactions(period):
             je.entry_date.strftime('%Y-%m-%d') if je and je.entry_date else '',
             je.description if je else '',
             item.owner or 'None'
+        ])
+
+    reminder_tasks = ReminderTask.query.order_by(ReminderTask.id.asc()).all()
+    for task in reminder_tasks:
+        reminder_tasks_ws.append([
+            task.id,
+            task.title or '',
+            task.notes or '',
+            int(task.due_day_of_month or 1),
+            bool(task.is_active)
+        ])
+
+    reminder_occurrences = (
+        ReminderOccurrence.query
+        .order_by(ReminderOccurrence.month.asc(), ReminderOccurrence.reminder_task_id.asc())
+        .all()
+    )
+    for occurrence in reminder_occurrences:
+        reminder_occurrences_ws.append([
+            occurrence.id,
+            occurrence.reminder_task_id,
+            occurrence.month.strftime('%Y-%m') if occurrence.month else '',
+            occurrence.due_date.strftime('%Y-%m-%d') if occurrence.due_date else '',
+            bool(occurrence.is_done),
+            occurrence.done_at.strftime('%Y-%m-%d %H:%M:%S') if occurrence.done_at else '',
+            bool(occurrence.is_removed),
+            occurrence.removed_at.strftime('%Y-%m-%d %H:%M:%S') if occurrence.removed_at else ''
         ])
 
     stream = BytesIO()

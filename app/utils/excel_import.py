@@ -10,7 +10,9 @@ from app.models import (
     TransactionLine,
     AccountType,
     MonthlyBudget,
-    BudgetEntryAssignment
+    BudgetEntryAssignment,
+    ReminderTask,
+    ReminderOccurrence
 )
 from app.services import snapshots_service
 
@@ -163,6 +165,38 @@ def _parse_date_cell(value):
     except Exception:
         from dateutil import parser as _parser
         return _parser.parse(text, dayfirst=True).date()
+
+
+def _parse_datetime_cell(value):
+    if value is None or value == '':
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text, '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        from dateutil import parser as _parser
+        return _parser.parse(text, dayfirst=True)
+
+
+def _parse_bool_cell(value, default=False):
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {'true', 'yes', 'y', '1', 'done'}:
+        return True
+    if text in {'false', 'no', 'n', '0', 'not done'}:
+        return False
+    return default
 
 
 def parse_transaction_row(row, row_num):
@@ -453,6 +487,120 @@ def import_transactions_from_excel(file_stream):
                         db.session.add(assignment)
                 except Exception as e:
                     results['warnings'].append(f"Budget Assignments row {row_idx}: {str(e)}")
+
+        # Import Reminder Tasks, if present
+        reminder_task_id_map = {}
+        if 'Reminders Tasks' in workbook.sheetnames:
+            rt_ws = workbook['Reminders Tasks']
+            for row_idx, row in enumerate(rt_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    source_task_id = None
+                    if len(row) > 0 and row[0] not in (None, ''):
+                        source_task_id = int(row[0])
+
+                    title = str(row[1] or '').strip() if len(row) > 1 else ''
+                    if not title:
+                        raise ValueError('Title is required')
+
+                    notes = (str(row[2] or '').strip() if len(row) > 2 else '') or None
+                    due_day = int(row[3] or 0) if len(row) > 3 else 0
+                    if due_day < 1 or due_day > 31:
+                        raise ValueError('Due Day Of Month must be between 1 and 31')
+                    is_active = _parse_bool_cell(row[4] if len(row) > 4 else None, default=True)
+
+                    task = None
+                    if source_task_id is not None:
+                        task = ReminderTask.query.get(source_task_id)
+
+                    if task is None:
+                        task = (
+                            ReminderTask.query
+                            .filter(db.func.lower(ReminderTask.title) == title.lower())
+                            .filter(ReminderTask.due_day_of_month == due_day)
+                            .filter(db.func.coalesce(ReminderTask.notes, '') == (notes or ''))
+                            .first()
+                        )
+
+                    if task:
+                        task.title = title
+                        task.notes = notes
+                        task.due_day_of_month = due_day
+                        task.is_active = is_active
+                    else:
+                        task = ReminderTask(
+                            title=title,
+                            notes=notes,
+                            due_day_of_month=due_day,
+                            is_active=is_active
+                        )
+                        db.session.add(task)
+                        db.session.flush()
+
+                    if source_task_id is not None:
+                        reminder_task_id_map[source_task_id] = task.id
+                except Exception as e:
+                    results['warnings'].append(f"Reminders Tasks row {row_idx}: {str(e)}")
+
+        # Import Reminder Occurrences, if present
+        if 'Reminder Occurrences' in workbook.sheetnames:
+            ro_ws = workbook['Reminder Occurrences']
+            for row_idx, row in enumerate(ro_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    source_task_id = None
+                    if len(row) > 1 and row[1] not in (None, ''):
+                        source_task_id = int(row[1])
+
+                    mapped_task_id = None
+                    if source_task_id is not None:
+                        mapped_task_id = reminder_task_id_map.get(source_task_id)
+                        if mapped_task_id is None:
+                            existing_task = ReminderTask.query.get(source_task_id)
+                            mapped_task_id = existing_task.id if existing_task else None
+
+                    if mapped_task_id is None:
+                        raise ValueError('Task not found for occurrence')
+
+                    month_val = _parse_month_cell(row[2] if len(row) > 2 else None)
+                    if not month_val:
+                        raise ValueError('Month is required')
+
+                    due_date = _parse_date_cell(row[3] if len(row) > 3 else None)
+                    if not due_date:
+                        raise ValueError('Due Date is required')
+
+                    is_done = _parse_bool_cell(row[4] if len(row) > 4 else None, default=False)
+                    done_at = _parse_datetime_cell(row[5] if len(row) > 5 else None)
+                    is_removed = _parse_bool_cell(row[6] if len(row) > 6 else None, default=False)
+                    removed_at = _parse_datetime_cell(row[7] if len(row) > 7 else None)
+
+                    occurrence = ReminderOccurrence.query.filter_by(
+                        reminder_task_id=mapped_task_id,
+                        month=month_val
+                    ).first()
+                    if occurrence:
+                        occurrence.due_date = due_date
+                        occurrence.is_done = is_done
+                        occurrence.done_at = done_at if is_done else None
+                        occurrence.is_removed = is_removed
+                        occurrence.removed_at = removed_at if is_removed else None
+                    else:
+                        db.session.add(
+                            ReminderOccurrence(
+                                reminder_task_id=mapped_task_id,
+                                month=month_val,
+                                due_date=due_date,
+                                is_done=is_done,
+                                done_at=done_at if is_done else None,
+                                is_removed=is_removed,
+                                removed_at=removed_at if is_removed else None
+                            )
+                        )
+                except Exception as e:
+                    results['warnings'].append(f"Reminder Occurrences row {row_idx}: {str(e)}")
 
         db.session.commit()
         

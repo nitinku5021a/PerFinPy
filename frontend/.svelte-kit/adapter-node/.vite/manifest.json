@@ -190,6 +190,15 @@
       "_format.js"
     ]
   },
+  "src/routes/reminders/+page.svelte": {
+    "file": "entries/pages/reminders/_page.svelte.js",
+    "name": "entries/pages/reminders/_page.svelte",
+    "src": "src/routes/reminders/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_ssr.js"
+    ]
+  },
   "src/routes/report/+page.svelte": {
     "file": "entries/pages/report/_page.svelte.js",
     "name": "entries/pages/report/_page.svelte",

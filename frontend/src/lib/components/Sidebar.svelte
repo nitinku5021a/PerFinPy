@@ -13,7 +13,8 @@
     { href: "/income-statement", label: "Income Statement" },
     { href: "/trial-balance", label: "Trial Balance" },
     { href: "/journal-entries", label: "Journal Entries" },
-    { href: "/transactions", label: "Transactions" }
+    { href: "/transactions", label: "Transactions" },
+    { href: "/reminders", label: "Reminders" }
   ];
 </script>
 
