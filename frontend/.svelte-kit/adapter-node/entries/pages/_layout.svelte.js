@@ -1,13 +1,28 @@
-import { c as create_ssr_component, b as subscribe, e as each, d as add_attribute, f as add_classes, g as escape, v as validate_component } from "../../chunks/ssr.js";
+import { c as create_ssr_component, a as subscribe, e as each, b as add_attribute, d as add_classes, f as escape, v as validate_component } from "../../chunks/ssr.js";
 import { p as page } from "../../chunks/stores.js";
 const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
   let $page, $$unsubscribe_page;
   $$unsubscribe_page = subscribe(page, (value) => $page = value);
-  const links = [
+  const primaryLinks = [
     { href: "/dashboard", label: "Dashboard" },
+    {
+      href: "/networth",
+      label: "Balance Sheet"
+    },
+    {
+      href: "/income-statement",
+      label: "Income Statement"
+    },
+    {
+      href: "/transactions",
+      label: "Monthly Transactions"
+    },
+    { href: "/reminders", label: "Reminders" },
+    { href: "/report", label: "Reports" }
+  ];
+  const otherLinks = [
     { href: "/accounts", label: "Accounts" },
     { href: "/ledger", label: "Ledger" },
-    { href: "/networth", label: "Net Worth" },
     {
       href: "/investments",
       label: "Investments"
@@ -16,14 +31,9 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
       href: "/monthly-budget",
       label: "Monthly Budget"
     },
-    { href: "/report", label: "Report" },
     {
       href: "/wealth-report",
       label: "Wealth Report"
-    },
-    {
-      href: "/income-statement",
-      label: "Income Statement"
     },
     {
       href: "/trial-balance",
@@ -32,15 +42,12 @@ const Sidebar = create_ssr_component(($$result, $$props, $$bindings, slots) => {
     {
       href: "/journal-entries",
       label: "Journal Entries"
-    },
-    {
-      href: "/transactions",
-      label: "Transactions"
-    },
-    { href: "/reminders", label: "Reminders" }
+    }
   ];
   $$unsubscribe_page();
-  return `<aside class="sidebar"><div class="brand" data-svelte-h="svelte-1pfzcxj">PerFinPy</div> <nav class="nav">${each(links, (link) => {
+  return `<aside class="sidebar"><div class="brand" data-svelte-h="svelte-1pfzcxj">PerFinPy</div> <nav class="nav">${each(primaryLinks, (link) => {
+    return `<a${add_attribute("href", link.href, 0)}${add_classes(($page.url.pathname === link.href ? "active" : "").trim())}>${escape(link.label)} </a>`;
+  })} <div class="nav-section" data-svelte-h="svelte-1uxwnkt">Others</div> ${each(otherLinks, (link) => {
     return `<a${add_attribute("href", link.href, 0)}${add_classes(($page.url.pathname === link.href ? "active" : "").trim())}>${escape(link.label)} </a>`;
   })}</nav></aside>`;
 });

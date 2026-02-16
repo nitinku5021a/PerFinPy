@@ -1,4 +1,4 @@
-import { c as create_ssr_component, g as escape, v as validate_component } from "../../../chunks/ssr.js";
+import { c as create_ssr_component, f as escape, v as validate_component } from "../../../chunks/ssr.js";
 import { T as Table } from "../../../chunks/Table.js";
 import { t as toPeriodParam } from "../../../chunks/period.js";
 import { f as formatInr } from "../../../chunks/format.js";

@@ -24,6 +24,54 @@
     }
     return null;
   }
+
+  function toNumber(val) {
+    const num = Number(val);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  function hashString(value) {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function barColorForGroupName(name) {
+    const palette = [
+      "var(--bar-a)",
+      "var(--bar-b)",
+      "var(--bar-c)",
+      "var(--bar-d)",
+      "var(--bar-e)",
+      "var(--bar-f)"
+    ];
+    const key = (name || "group").toLowerCase();
+    return palette[hashString(key) % palette.length];
+  }
+
+  $: parentBarMax = groups.map((g) => {
+    return (g.parents || []).map((p) => {
+      const maxByMonth = {};
+      for (const m of months) {
+        let max = 0;
+        for (const acc of p.accounts || []) {
+          const val = Math.abs(toNumber(acc.monthly_balances?.[m.key] ?? 0));
+          if (val > max) max = val;
+        }
+        maxByMonth[m.key] = max;
+      }
+      return maxByMonth;
+    });
+  });
+
+  function barPercent(groupIndex, parentIndex, monthKey, value) {
+    const max = parentBarMax?.[groupIndex]?.[parentIndex]?.[monthKey] || 0;
+    if (!max) return 0;
+    const pct = Math.abs(toNumber(value)) / max;
+    return Math.min(50, Math.round(pct * 50));
+  }
 </script>
 
 <div class="matrix-wrap">
@@ -52,7 +100,7 @@
             <td class="num">{formatValue(group.monthly_balances?.[m.key])}</td>
           {/each}
         </tr>
-        {#each group.parents as parent}
+        {#each group.parents as parent, pi}
           <tr class={`parent-row ${gi % 2 === 0 ? "group-alt-a" : "group-alt-b"}`}>
             <td class="sticky-col sticky-col-1 parent-indent">
               {#if parent.account_id}
@@ -73,7 +121,7 @@
               </td>
             {/each}
           </tr>
-          {#each parent.accounts as acc}
+          {#each parent.accounts as acc, ai}
             <tr class={gi % 2 === 0 ? "group-alt-a" : "group-alt-b"}>
               <td class="sticky-col sticky-col-1 account-indent">
                 {#if acc.account_id}
@@ -83,13 +131,14 @@
                 {/if}
               </td>
               {#each months as m}
-                <td class="num">
+                <td class="num data-cell" style={`--bar-color: ${barColorForGroupName(parent.name)}`}>
+                  <div class="data-bar" style={`width: ${barPercent(gi, pi, m.key, acc.monthly_balances?.[m.key])}%`}></div>
                   {#if valueHref(acc.account_id, m.key)}
-                    <a class="drill-link" href={valueHref(acc.account_id, m.key)}>
+                    <a class="drill-link cell-value" href={valueHref(acc.account_id, m.key)}>
                       {formatValue(acc.monthly_balances?.[m.key])}
                     </a>
                   {:else}
-                    {formatValue(acc.monthly_balances?.[m.key])}
+                    <span class="cell-value">{formatValue(acc.monthly_balances?.[m.key])}</span>
                   {/if}
                 </td>
               {/each}

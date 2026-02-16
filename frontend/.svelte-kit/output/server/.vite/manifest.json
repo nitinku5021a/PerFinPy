@@ -30,6 +30,13 @@
     "file": "chunks/format.js",
     "name": "format"
   },
+  "_index.js": {
+    "file": "chunks/index.js",
+    "name": "index",
+    "imports": [
+      "_ssr.js"
+    ]
+  },
   "_internal.js": {
     "file": "chunks/internal.js",
     "name": "internal",
@@ -74,7 +81,7 @@
     "imports": [
       "_internal.js",
       "_exports.js",
-      "_ssr.js"
+      "_index.js"
     ]
   },
   "src/hooks.server.ts": {
@@ -93,7 +100,7 @@
       "_stores.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.5H1aojsZ.css"
+      "_app/immutable/assets/_layout.DKLKPP7l.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -123,7 +130,11 @@
     "isEntry": true,
     "imports": [
       "_ssr.js",
-      "_format.js"
+      "_format.js",
+      "_index.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DpQ8Jxrn.css"
     ]
   },
   "src/routes/income-statement/+page.svelte": {

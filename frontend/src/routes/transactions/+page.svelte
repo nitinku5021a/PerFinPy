@@ -247,6 +247,19 @@
     }
   }
 
+  $: shadedEntries = (() => {
+    const rows = data?.entries || [];
+    let lastDate = null;
+    let toggle = false;
+    return rows.map((row) => {
+      if (row.entry_date !== lastDate) {
+        toggle = !toggle;
+        lastDate = row.entry_date;
+      }
+      return { ...row, __shade: toggle ? "date-shade-a" : "date-shade-b" };
+    });
+  })();
+
   async function handleImport(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -310,6 +323,18 @@
       importError = err.message || "Import failed.";
     }
   }
+
+  function monthTabColor(index) {
+    const palette = [
+      "var(--tab-a)",
+      "var(--tab-b)",
+      "var(--tab-c)",
+      "var(--tab-d)",
+      "var(--tab-e)",
+      "var(--tab-f)"
+    ];
+    return palette[index % palette.length];
+  }
 </script>
 
 <h1 class="page-title">Transactions</h1>
@@ -348,7 +373,7 @@
   </div>
 </div>
 
-<div class="panel">
+<div class="panel entry-panel">
   <div class="toolbar entry-form">
     <label>
       Date:&nbsp;
@@ -567,9 +592,10 @@
 </div>
 
 <div class="tabs">
-  {#each months as m}
+  {#each months as m, i}
     <button
       class={`tab ${activeMonth === m.key ? "active" : ""}`}
+      style={`--tab-color: ${monthTabColor(i)}`}
       on:click={() => setActiveMonth(m.key)}
     >
       {m.label}
@@ -579,7 +605,7 @@
 
 <div class="split">
   <div>
-    <Table columns={columns} rows={data ? data.entries : []} />
+    <Table columns={columns} rows={shadedEntries} rowClass={(row) => row.__shade} />
     <div class="toolbar">
       <button class="button" disabled={!data?.pagination?.has_prev} on:click={() => {
         const params = new URLSearchParams();
@@ -610,18 +636,18 @@
       </button>
     </div>
     <div class="table-wrap">
-      <table class="table">
+      <table class="table summary-table">
         <thead>
           <tr>
-            <th>Asset <span class="meta">({formatInr(totals.Asset)})</span></th>
-            <th>Liability <span class="meta">({formatInr(totals.Liability)})</span></th>
-            <th>Income <span class="meta">({formatInr(totals.Income)})</span></th>
-            <th>Expense <span class="meta">({formatInr(totals.Expense)})</span></th>
+            <th class="col-asset">Asset <span class="meta">({formatInr(totals.Asset)})</span></th>
+            <th class="col-liability">Liability <span class="meta">({formatInr(totals.Liability)})</span></th>
+            <th class="col-income">Income <span class="meta">({formatInr(totals.Income)})</span></th>
+            <th class="col-expense">Expense <span class="meta">({formatInr(totals.Expense)})</span></th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>
+            <td class="col-asset">
               {#each data?.period_sums?.Asset || [] as item}
                 <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
@@ -629,7 +655,7 @@
                 </button>
               {/each}
             </td>
-            <td>
+            <td class="col-liability">
               {#each data?.period_sums?.Liability || [] as item}
                 <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
@@ -637,7 +663,7 @@
                 </button>
               {/each}
             </td>
-            <td>
+            <td class="col-income">
               {#each data?.period_sums?.Income || [] as item}
                 <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>
@@ -645,7 +671,7 @@
                 </button>
               {/each}
             </td>
-            <td>
+            <td class="col-expense">
               {#each data?.period_sums?.Expense || [] as item}
                 <button class="list-row list-row-btn" on:click={() => applyAccountFilter(item.account_id)}>
                   <span>{item.name}</span>

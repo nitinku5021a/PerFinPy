@@ -2,6 +2,7 @@
   export let columns = [];
   export let rows = [];
   export let allowHtml = false;
+  export let rowClass = null;
 </script>
 
 <div class="table-wrap">
@@ -17,7 +18,7 @@
     </thead>
     <tbody>
       {#each rows as row, index}
-        <tr>
+        <tr class={rowClass ? rowClass(row, index) : ""}>
           {#each columns as col}
             <td class={col.align === "right" || col.numeric ? "num" : ""}>
               {#if allowHtml}

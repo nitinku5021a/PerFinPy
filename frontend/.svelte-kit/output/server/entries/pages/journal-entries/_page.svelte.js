@@ -1,4 +1,4 @@
-import { c as create_ssr_component, b as subscribe, g as escape, v as validate_component } from "../../../chunks/ssr.js";
+import { c as create_ssr_component, a as subscribe, f as escape, v as validate_component } from "../../../chunks/ssr.js";
 import { T as Table } from "../../../chunks/Table.js";
 import { p as page } from "../../../chunks/stores.js";
 import { f as formatInr } from "../../../chunks/format.js";

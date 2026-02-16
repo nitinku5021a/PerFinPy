@@ -2,8 +2,8 @@
   import { onMount } from "svelte";
   import { apiGet } from "$lib/api";
   import NetWorthGrowthPanel from "$lib/components/NetWorthGrowthPanel.svelte";
+  import NetWorthTargetPanel from "$lib/components/NetWorthTargetPanel.svelte";
   import MonthlySavingPanel from "$lib/components/MonthlySavingPanel.svelte";
-  import CashFlowFlowDiagram from "$lib/components/CashFlowFlowDiagram.svelte";
 
   /** @type {import("$lib/financeMetrics").NetWorthMonthlyPoint[]} */
   let networthMonthly = [];
@@ -36,10 +36,10 @@
   {/if}
 
   <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+    <div class="lg:col-span-2">
+      <NetWorthTargetPanel series={networthMonthly} savingsSeries={savingsMonthly} />
+    </div>
     <NetWorthGrowthPanel series={networthMonthly} />
     <MonthlySavingPanel series={savingsMonthly} />
-    <div class="lg:col-span-2">
-      <CashFlowFlowDiagram />
-    </div>
   </div>
 </div>

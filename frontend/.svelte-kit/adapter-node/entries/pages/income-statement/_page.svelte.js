@@ -1,4 +1,4 @@
-import { c as create_ssr_component, d as add_attribute, v as validate_component } from "../../../chunks/ssr.js";
+import { c as create_ssr_component, b as add_attribute, v as validate_component } from "../../../chunks/ssr.js";
 import { N as NetworthMatrixTable } from "../../../chunks/NetworthMatrixTable.js";
 import { f as formatInr } from "../../../chunks/format.js";
 const Page = create_ssr_component(($$result, $$props, $$bindings, slots) => {
