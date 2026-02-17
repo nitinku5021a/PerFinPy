@@ -1,0 +1,1137 @@
+from datetime import datetime, date
+from app import db
+import json
+from app.models import (
+    Account,
+    TransactionLine,
+    JournalEntry,
+    DailyAccountBalance,
+    FinancialFreedomClockSnapshot,
+    DashboardPanelCache
+)
+from app.services.serialization import account_to_dict, entry_to_dict, isoformat_or_none, tree_to_dict
+from app.services import snapshots_service
+from sqlalchemy import func, case
+
+
+def get_period_dates(period_str):
+    """Parse period string and return start_date, end_date"""
+    today = date.today()
+
+    if period_str == 'all':
+        return None, None
+    if period_str == 'ytd':
+        return date(today.year, 1, 1), today
+    if period_str == 'current_month':
+        return date(today.year, today.month, 1), today
+    if period_str and period_str.startswith('custom_'):
+        parts = period_str.split('_')
+        if len(parts) >= 3:
+            start = datetime.strptime(parts[1], '%Y%m%d').date()
+            end = datetime.strptime(parts[2], '%Y%m%d').date()
+            return start, end
+
+    return None, None
+
+
+def get_roots_for_type(account_type):
+    """Return the set of top-level root accounts that contain accounts of the given type."""
+    accounts = Account.query.filter_by(account_type=account_type).all()
+    roots = {}
+    for acc in accounts:
+        root = acc
+        while root.parent is not None:
+            root = root.parent
+        roots[root.id] = root
+    return list(roots.values())
+
+
+def build_two_level_tree(parent_accounts, start_date, end_date, show_zero=False, tol=0.005, balance_map=None):
+    """Build a two-level tree (parent -> children -> grandchildren) with balances for rendering.
+
+    If show_zero is False (default), accounts with balances whose absolute value <= tol will be omitted.
+    Parents are omitted only if they and all their descendants are effectively zero.
+    """
+    if balance_map is None:
+        all_accounts = snapshots_service._collect_accounts(parent_accounts)
+        balance_map = snapshots_service.get_balances_for_accounts(all_accounts, start_date, end_date)
+
+    accounts_with_balance = []
+    for acc in parent_accounts:
+        parent_balance = snapshots_service.get_group_balance(acc, balance_map) if acc.is_group() else balance_map.get(acc.id, 0.0)
+        account_data = {
+            'account': acc,
+            'balance': parent_balance,
+            'children': []
+        }
+        for child in acc.children:
+            child_balance = snapshots_service.get_group_balance(child, balance_map) if child.is_group() else balance_map.get(child.id, 0.0)
+            child_data = {
+                'account': child,
+                'balance': child_balance,
+                'children': []
+            }
+            for grandchild in child.children:
+                gc_balance = snapshots_service.get_group_balance(grandchild, balance_map) if grandchild.is_group() else balance_map.get(grandchild.id, 0.0)
+                if not show_zero and abs(gc_balance) <= tol:
+                    continue
+                gc_data = {
+                    'account': grandchild,
+                    'balance': gc_balance
+                }
+                child_data['children'].append(gc_data)
+            if not show_zero and abs(child_balance) <= tol and len(child_data['children']) == 0:
+                continue
+            account_data['children'].append(child_data)
+        if not show_zero and abs(parent_balance) <= tol and len(account_data['children']) == 0:
+            continue
+        accounts_with_balance.append(account_data)
+    return accounts_with_balance
+
+
+def _sum_opening_balance_for_roots(roots):
+    """Sum ledger opening_balance for given roots and all their descendants (stated in ledger only)."""
+    total = 0.0
+    for acc in roots:
+        total += (acc.opening_balance or 0.0)
+        for child in acc.children:
+            total += (child.opening_balance or 0.0)
+            for gc in child.children:
+                total += (gc.opening_balance or 0.0)
+    return total
+
+
+def _sum_balance_for_roots(roots, balance_map):
+    """Sum balance for ALL accounts under given roots (for accurate totals, independent of show_zero)."""
+    total = 0.0
+    for acc in roots:
+        total += snapshots_service.get_group_balance(acc, balance_map) if acc.is_group() else balance_map.get(acc.id, 0.0)
+    return total
+
+
+def get_net_income(start_date=None, end_date=None):
+    """Calculate net income for a period"""
+    incomes = Account.query.filter_by(account_type='Income').all()
+    expenses = Account.query.filter_by(account_type='Expense').all()
+
+    balance_map = snapshots_service.get_balances_for_accounts(
+        incomes + expenses,
+        start_date,
+        end_date
+    )
+
+    total_income = 0
+    for acc in incomes:
+        total_income += abs(balance_map.get(acc.id, 0.0))
+
+    total_expenses = 0
+    for acc in expenses:
+        total_expenses += balance_map.get(acc.id, 0.0)
+
+    return total_income - total_expenses
+
+
+def networth_report(period, show_zero):
+    start_date, end_date = get_period_dates(period)
+
+    assets = Account.query.filter_by(account_type='Asset', parent_id=None).all()
+    liabilities = Account.query.filter_by(account_type='Liability', parent_id=None).all()
+    equity = Account.query.filter_by(account_type='Equity', parent_id=None).all()
+
+    all_accounts = Account.query.filter(Account.account_type.in_(['Asset', 'Liability', 'Equity'])).all()
+    balance_map = snapshots_service.get_balances_for_accounts(all_accounts, start_date, end_date)
+
+    asset_accounts = build_two_level_tree(assets, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
+    liability_accounts = build_two_level_tree(liabilities, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
+    equity_accounts = build_two_level_tree(equity, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
+
+    total_assets = _sum_balance_for_roots(assets, balance_map)
+    total_liabilities = _sum_balance_for_roots(liabilities, balance_map)
+    total_equity_before_carry = _sum_balance_for_roots(equity, balance_map)
+    net_income = get_net_income(start_date, end_date)
+    total_equity_before_carry += net_income
+
+    opening_balance_ledger = _sum_opening_balance_for_roots(equity)
+    carry_forward = total_assets - (total_liabilities + total_equity_before_carry)
+    total_equity = total_equity_before_carry + carry_forward
+
+    return {
+        'report': 'networth',
+        'asset_accounts': tree_to_dict(asset_accounts),
+        'liability_accounts': tree_to_dict(liability_accounts),
+        'equity_accounts': tree_to_dict(equity_accounts),
+        'total_assets': total_assets,
+        'total_liabilities': total_liabilities,
+        'total_equity': total_equity,
+        'net_income': net_income,
+        'opening_balance_ledger': opening_balance_ledger,
+        'carry_forward': carry_forward,
+        'start_date': isoformat_or_none(start_date),
+        'end_date': isoformat_or_none(end_date),
+        'period': period,
+        'show_zero': show_zero
+    }
+
+
+def income_statement_report(period, show_zero):
+    start_date, end_date = get_period_dates(period)
+
+    income_roots = get_roots_for_type('Income')
+    expense_roots = get_roots_for_type('Expense')
+
+    all_accounts = Account.query.filter(Account.account_type.in_(['Income', 'Expense'])).all()
+    balance_map = snapshots_service.get_balances_for_accounts(all_accounts, start_date, end_date)
+
+    income_accounts = build_two_level_tree(income_roots, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
+    expense_accounts = build_two_level_tree(expense_roots, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
+
+    total_income = sum(abs(item['balance']) for item in income_accounts)
+    total_expenses = sum(item['balance'] for item in expense_accounts)
+    net_income = total_income - total_expenses
+
+    return {
+        'report': 'income_statement',
+        'income_accounts': tree_to_dict(income_accounts),
+        'expense_accounts': tree_to_dict(expense_accounts),
+        'total_income': total_income,
+        'total_expenses': total_expenses,
+        'net_income': net_income,
+        'start_date': isoformat_or_none(start_date),
+        'end_date': isoformat_or_none(end_date),
+        'period': period,
+        'show_zero': show_zero
+    }
+
+
+def trial_balance_report(period):
+    start_date, end_date = get_period_dates(period)
+
+    accounts = Account.query.filter_by(is_active=True).order_by(Account.name).all()
+    balance_map = snapshots_service.get_balances_for_accounts(accounts, start_date, end_date)
+    account_balances = []
+    total_debits = 0
+    total_credits = 0
+
+    for acc in accounts:
+        balance = balance_map.get(acc.id, 0.0)
+        if balance != 0:
+            if balance > 0:
+                total_debits += balance
+            else:
+                total_credits += abs(balance)
+
+            account_balances.append({
+                'account': account_to_dict(acc),
+                'balance': abs(balance),
+                'type': 'Debit' if balance > 0 else 'Credit'
+            })
+
+    return {
+        'report': 'trial_balance',
+        'account_balances': account_balances,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'start_date': isoformat_or_none(start_date),
+        'end_date': isoformat_or_none(end_date),
+        'period': period
+    }
+
+
+def account_entries_report(account_id, period):
+    start_date, end_date = get_period_dates(period)
+
+    account = Account.query.get_or_404(account_id)
+    descendant_ids = [a.id for a in account.get_all_descendants()] + [account.id]
+
+    q = JournalEntry.query.join(TransactionLine).filter(TransactionLine.account_id.in_(descendant_ids))
+    if start_date:
+        q = q.filter(TransactionLine.date >= start_date)
+    if end_date:
+        q = q.filter(TransactionLine.date <= end_date)
+
+    entries = q.distinct().order_by(JournalEntry.entry_date.desc()).all()
+
+    return {
+        'report': 'account_entries',
+        'account': account_to_dict(account),
+        'entries': [entry_to_dict(e) for e in entries],
+        'period': period,
+        'start_date': isoformat_or_none(start_date),
+        'end_date': isoformat_or_none(end_date)
+    }
+
+
+def _add_months(d, delta):
+    y = d.year + ((d.month - 1 + delta) // 12)
+    m = ((d.month - 1 + delta) % 12) + 1
+    return date(y, m, 1)
+
+
+def networth_matrix_report(start_month_str=None):
+    today = date.today()
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    max_month = date.today()
+    min_month = date.today()
+    if max_date:
+        max_month = date(max_date.year, max_date.month, 1)
+    if min_date:
+        min_month = date(min_date.year, min_date.month, 1)
+
+    start_month = date(today.year, today.month, 1)
+    if start_month_str:
+        try:
+            parsed = datetime.strptime(start_month_str, '%Y-%m').date()
+            start_month = date(parsed.year, parsed.month, 1)
+        except Exception:
+            start_month = date(today.year, today.month, 1)
+
+    if start_month > max_month:
+        start_month = max_month
+    if start_month < min_month:
+        start_month = min_month
+
+    months = [_add_months(start_month, -i) for i in range(0, 12)]
+    month_keys = [m.strftime('%Y-%m') for m in months]
+
+    account_types = ['Asset', 'Liability', 'Equity']
+    accounts = Account.query.filter(Account.account_type.in_(account_types)).all()
+    account_ids = [a.id for a in accounts]
+    opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
+    name_by_id = {a.id: (a.get_path() or a.name) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    balances_by_month = {}
+    for idx, month in enumerate(months):
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        key = month_keys[idx]
+        balances_by_month[key] = {
+            acc_id: opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
+            for acc_id in account_ids
+        }
+
+    groups = []
+    label_map = {
+        'Asset': 'Assets',
+        'Liability': 'Liabilities',
+        'Equity': 'Equity'
+    }
+    for account_type in account_types:
+        roots = Account.query.filter_by(account_type=account_type, parent_id=None).all()
+        group_payload = {
+            'group': label_map.get(account_type, f"{account_type}s"),
+            'parents': [],
+            'monthly_balances': {}
+        }
+
+        for root in sorted(roots, key=lambda a: name_by_id[a.id].lower()):
+            descendants = root.get_all_descendants()
+            leaf_accounts = descendants if descendants else [root]
+            parent_payload = {
+                'name': name_by_id[root.id],
+                'account_id': root.id,
+                'accounts': [],
+                'monthly_balances': {}
+            }
+
+            for acc in sorted(leaf_accounts, key=lambda a: name_by_id[a.id].lower()):
+                acc_monthly = {
+                    m: balances_by_month[m].get(acc.id, opening_by_id.get(acc.id, 0.0))
+                    for m in month_keys
+                }
+                parent_payload['accounts'].append({
+                    'name': name_by_id[acc.id].split(':')[-1],
+                    'account_id': acc.id,
+                    'monthly_balances': acc_monthly
+                })
+
+            for m in month_keys:
+                ids = [root.id] + [a.id for a in descendants]
+                parent_payload['monthly_balances'][m] = sum(
+                    balances_by_month[m].get(aid, opening_by_id.get(aid, 0.0))
+                    for aid in ids
+                )
+
+            group_payload['parents'].append(parent_payload)
+
+        for m in month_keys:
+            group_payload['monthly_balances'][m] = sum(
+                p['monthly_balances'][m] for p in group_payload['parents']
+            )
+
+        groups.append(group_payload)
+
+    has_older = _add_months(start_month, -11) > min_month
+    has_newer = start_month < max_month
+
+    return {
+        'start_month': start_month.strftime('%Y-%m'),
+        'months': month_keys,
+        'has_older': has_older,
+        'has_newer': has_newer,
+        'groups': groups
+    }
+
+
+def income_matrix_report(start_month_str=None):
+    today = date.today()
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    max_month = date(today.year, today.month, 1)
+    min_month = date(today.year, today.month, 1)
+    if max_date:
+        max_month = date(max_date.year, max_date.month, 1)
+    if min_date:
+        min_month = date(min_date.year, min_date.month, 1)
+
+    start_month = date(today.year, today.month, 1)
+    if start_month_str:
+        try:
+            parsed = datetime.strptime(start_month_str, '%Y-%m').date()
+            start_month = date(parsed.year, parsed.month, 1)
+        except Exception:
+            start_month = date(today.year, today.month, 1)
+
+    if start_month > max_month:
+        start_month = max_month
+    if start_month < min_month:
+        start_month = min_month
+
+    months = [_add_months(start_month, -i) for i in range(0, 12)]
+    month_keys = [m.strftime('%Y-%m') for m in months]
+
+    account_types = ['Income', 'Expense']
+    accounts = Account.query.filter(Account.account_type.in_(account_types)).all()
+    account_ids = [a.id for a in accounts]
+    name_by_id = {a.id: (a.get_path() or a.name) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    balances_by_month = {}
+    for idx, month in enumerate(months):
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date >= month_start)
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        key = month_keys[idx]
+        balances_by_month[key] = {acc_id: sums.get(acc_id, 0.0) for acc_id in account_ids}
+
+    groups = []
+    for account_type in account_types:
+        roots = Account.query.filter_by(account_type=account_type, parent_id=None).all()
+        group_payload = {
+            'group': f"{account_type}",
+            'parents': [],
+            'monthly_balances': {}
+        }
+
+        for root in sorted(roots, key=lambda a: name_by_id[a.id].lower()):
+            descendants = root.get_all_descendants()
+            leaf_accounts = descendants if descendants else [root]
+            parent_payload = {
+                'name': name_by_id[root.id],
+                'account_id': root.id,
+                'accounts': [],
+                'monthly_balances': {}
+            }
+
+            for acc in sorted(leaf_accounts, key=lambda a: name_by_id[a.id].lower()):
+                acc_monthly = {}
+                for m in month_keys:
+                    val = balances_by_month[m].get(acc.id, 0.0)
+                    if type_by_id[acc.id] == 'Income':
+                        val = abs(val)
+                    acc_monthly[m] = val
+                parent_payload['accounts'].append({
+                    'name': name_by_id[acc.id].split(':')[-1],
+                    'account_id': acc.id,
+                    'monthly_balances': acc_monthly
+                })
+
+            for m in month_keys:
+                ids = [root.id] + [a.id for a in descendants]
+                total = 0.0
+                for aid in ids:
+                    val = balances_by_month[m].get(aid, 0.0)
+                    if type_by_id.get(aid) == 'Income':
+                        val = abs(val)
+                    total += val
+                parent_payload['monthly_balances'][m] = total
+
+            group_payload['parents'].append(parent_payload)
+
+        for m in month_keys:
+            group_payload['monthly_balances'][m] = sum(
+                p['monthly_balances'][m] for p in group_payload['parents']
+            )
+
+        groups.append(group_payload)
+
+    has_older = _add_months(start_month, -11) > min_month
+    has_newer = start_month < max_month
+
+    return {
+        'start_month': start_month.strftime('%Y-%m'),
+        'months': month_keys,
+        'has_older': has_older,
+        'has_newer': has_newer,
+        'groups': groups
+    }
+
+
+def _months_between(min_month, max_month):
+    months = []
+    cursor = date(min_month.year, min_month.month, 1)
+    end = date(max_month.year, max_month.month, 1)
+    while cursor <= end:
+        months.append(cursor)
+        cursor = _add_months(cursor, 1)
+    return months
+
+
+def networth_growth_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'yearly': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Asset', 'Liability'])).all()
+    account_ids = [a.id for a in accounts]
+    opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    yearly = []
+    prev_value = None
+    for year in range(min_month.year, max_month.year + 1):
+        year_end = date(year, 12, 1)
+        if year_end > max_month:
+            year_end = max_month
+        month_end = snapshots_service.month_end(year_end)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        assets = 0.0
+        liabilities = 0.0
+        for acc_id in account_ids:
+            val = opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Asset':
+                assets += val
+            else:
+                liabilities += val
+        networth = assets + liabilities
+        pct = None
+        if prev_value is not None and abs(prev_value) > 0.00001:
+            pct = ((networth - prev_value) / abs(prev_value)) * 100.0
+        yearly.append({
+            'year': year_end.year,
+            'networth': networth,
+            'pct_change': pct
+        })
+        prev_value = networth
+
+    return {'yearly': yearly}
+
+
+def net_savings_series_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Income', 'Expense'])).all()
+    account_ids = [a.id for a in accounts]
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    series = []
+    for month in months:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date >= month_start)
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        income = 0.0
+        expense = 0.0
+        for acc_id in account_ids:
+            val = sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Income':
+                income += abs(val)
+            else:
+                expense += abs(val)
+        net = income - expense
+        pct = None
+        if income > 0.00001:
+            pct = (net / income) * 100.0
+        series.append({
+            'month': month.strftime('%Y-%m'),
+            'income': income,
+            'expense': expense,
+            'net_savings': net,
+            'net_savings_pct': pct
+        })
+
+    return {'months': series}
+
+
+def networth_monthly_series_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    accounts = Account.query.filter(Account.account_type.in_(['Asset', 'Liability'])).all()
+    account_ids = [a.id for a in accounts]
+    opening_by_id = {a.id: (a.opening_balance or 0.0) for a in accounts}
+    type_by_id = {a.id: a.account_type for a in accounts}
+
+    real_estate_root = (
+        Account.query
+        .filter(
+            func.lower(Account.name) == 'real estate',
+            Account.account_type == 'Asset',
+            Account.parent_id.is_(None)
+        )
+        .first()
+    )
+    real_estate_ids = set()
+    if real_estate_root:
+        real_estate_ids = {real_estate_root.id, *[a.id for a in real_estate_root.get_all_descendants()]}
+
+    series = []
+    prev_value = None
+    for month in months:
+        month_end = snapshots_service.month_end(month)
+        rows = (
+            DailyAccountBalance.query.with_entities(
+                DailyAccountBalance.account_id,
+                func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+            )
+            .filter(DailyAccountBalance.account_id.in_(account_ids))
+            .filter(DailyAccountBalance.date <= month_end)
+            .group_by(DailyAccountBalance.account_id)
+            .all()
+        )
+        sums = {row[0]: row[1] for row in rows}
+        assets = 0.0
+        liabilities = 0.0
+        real_estate = 0.0
+        for acc_id in account_ids:
+            val = opening_by_id.get(acc_id, 0.0) + sums.get(acc_id, 0.0)
+            if type_by_id[acc_id] == 'Asset':
+                assets += val
+            else:
+                liabilities += val
+            if acc_id in real_estate_ids:
+                real_estate += val
+        networth = assets + liabilities
+        liquid_networth = networth - real_estate
+        delta = None
+        pct = None
+        if prev_value is not None:
+            delta = networth - prev_value
+            if abs(prev_value) > 0.00001:
+                pct = (delta / abs(prev_value)) * 100.0
+        series.append({
+            'month': month.strftime('%Y-%m'),
+            'networth': networth,
+            'real_estate': real_estate,
+            'liquid_networth': liquid_networth,
+            'delta': delta,
+            'pct_change': pct
+        })
+        prev_value = networth
+
+    return {'months': series}
+
+
+def expense_income_asset_report():
+    max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
+    min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
+    if not max_date or not min_date:
+        return {'months': [], 'years': []}
+
+    min_month = date(min_date.year, min_date.month, 1)
+    max_month = date(max_date.year, max_date.month, 1)
+    months = _months_between(min_month, max_month)
+
+    income_accounts = Account.query.filter_by(account_type='Income').all()
+    expense_accounts = Account.query.filter_by(account_type='Expense').all()
+    asset_accounts = Account.query.filter_by(account_type='Asset').all()
+
+    income_ids = [a.id for a in income_accounts]
+    expense_ids = [a.id for a in expense_accounts]
+    asset_ids = [a.id for a in asset_accounts]
+    asset_opening = {a.id: (a.opening_balance or 0.0) for a in asset_accounts}
+
+    rows = []
+    for month in months:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+
+        income_sums = {}
+        if income_ids:
+            income_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(income_ids))
+                .filter(DailyAccountBalance.date >= month_start)
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            income_sums = {row[0]: row[1] for row in income_rows}
+
+        expense_sums = {}
+        if expense_ids:
+            expense_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(expense_ids))
+                .filter(DailyAccountBalance.date >= month_start)
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            expense_sums = {row[0]: row[1] for row in expense_rows}
+
+        asset_cumulative = {}
+        if asset_ids:
+            asset_rows = (
+                DailyAccountBalance.query.with_entities(
+                    DailyAccountBalance.account_id,
+                    func.coalesce(func.sum(DailyAccountBalance.balance), 0.0)
+                )
+                .filter(DailyAccountBalance.account_id.in_(asset_ids))
+                .filter(DailyAccountBalance.date <= month_end)
+                .group_by(DailyAccountBalance.account_id)
+                .all()
+            )
+            asset_cumulative = {row[0]: row[1] for row in asset_rows}
+
+        sum_income = sum(abs(income_sums.get(acc_id, 0.0)) for acc_id in income_ids)
+        sum_expense = -sum(abs(expense_sums.get(acc_id, 0.0)) for acc_id in expense_ids)
+        max_asset = sum(asset_opening.get(acc_id, 0.0) + asset_cumulative.get(acc_id, 0.0) for acc_id in asset_ids)
+        savings = sum_income + sum_expense
+        savings_pct_income = None
+        if abs(sum_income) > 0.00001:
+            savings_pct_income = (savings / sum_income) * 100.0
+        savings_pct_expense = None
+        if abs(sum_expense) > 0.00001:
+            savings_pct_expense = (savings / abs(sum_expense)) * 100.0
+
+        rows.append({
+            'month': month.strftime('%Y-%m'),
+            'year': month.year,
+            'month_number': month.month,
+            'sum_income': sum_income,
+            'sum_expense': sum_expense,
+            'max_asset': max_asset,
+            'rolling_avg_expense': None,
+            'asset_mom_change_pct': None,
+            'asset_yoy_change_pct': None,
+            'savings_pct_income': savings_pct_income,
+            'savings_pct_expense': savings_pct_expense
+        })
+
+    month_index = {row['month']: idx for idx, row in enumerate(rows)}
+    for idx, row in enumerate(rows):
+        # Rolling 12-month average expense (monthly only)
+        start_idx = max(0, idx - 11)
+        window = rows[start_idx:idx + 1]
+        if window:
+            row['rolling_avg_expense'] = sum(item['sum_expense'] for item in window) / len(window)
+
+        # Max asset month-over-month percentage change
+        if idx > 0:
+            prev_asset = rows[idx - 1]['max_asset']
+            if abs(prev_asset) > 0.00001:
+                row['asset_mom_change_pct'] = ((row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+
+        # Max asset percentage change vs same month previous year
+        year = row['year']
+        month_num = row['month_number']
+        prev_key = f"{year - 1}-{month_num:02d}"
+        prev_idx = month_index.get(prev_key)
+        if prev_idx is not None:
+            prev_asset = rows[prev_idx]['max_asset']
+            if abs(prev_asset) > 0.00001:
+                row['asset_yoy_change_pct'] = ((row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+
+    yearly = {}
+    for row in rows:
+        year = row['year']
+        if year not in yearly:
+            yearly[year] = {
+                'year': year,
+                'sum_income': 0.0,
+                'sum_expense': 0.0,
+                'max_asset': row['max_asset']
+            }
+        yearly[year]['sum_income'] += row['sum_income']
+        yearly[year]['sum_expense'] += row['sum_expense']
+        yearly[year]['max_asset'] = max(yearly[year]['max_asset'], row['max_asset'])
+
+    year_rows = [yearly[year] for year in sorted(yearly.keys())]
+    prev_year = None
+    for year_row in year_rows:
+        year_savings = year_row['sum_income'] + year_row['sum_expense']
+        year_row['rolling_avg_expense'] = None
+        year_row['asset_mom_change_pct'] = None
+        year_row['asset_yoy_change_pct'] = None
+        year_row['savings_pct_income'] = None
+        if abs(year_row['sum_income']) > 0.00001:
+            year_row['savings_pct_income'] = (year_savings / year_row['sum_income']) * 100.0
+        year_row['savings_pct_expense'] = None
+        if abs(year_row['sum_expense']) > 0.00001:
+            year_row['savings_pct_expense'] = (year_savings / abs(year_row['sum_expense'])) * 100.0
+        if prev_year is not None:
+            prev_asset = prev_year['max_asset']
+            if abs(prev_asset) > 0.00001:
+                year_row['asset_yoy_change_pct'] = ((year_row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
+        prev_year = year_row
+
+    return {'months': rows, 'years': year_rows}
+
+
+def investment_flows_report(account_ids, months=13):
+    if not account_ids:
+        return {'months': []}
+
+    today = date.today()
+    end_month = date(today.year, today.month, 1)
+    start_month = _add_months(end_month, -(months - 1))
+    month_list = [ _add_months(start_month, i) for i in range(months) ]
+
+    flows = []
+    for month in month_list:
+        month_start = date(month.year, month.month, 1)
+        month_end = snapshots_service.month_end(month)
+        net = (
+            TransactionLine.query.session.query(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (func.upper(TransactionLine.line_type) == 'DEBIT', TransactionLine.amount),
+                            else_=-TransactionLine.amount
+                        )
+                    ),
+                    0.0
+                )
+            )
+            .filter(TransactionLine.account_id.in_(account_ids))
+            .filter(TransactionLine.date >= month_start)
+            .filter(TransactionLine.date <= month_end)
+            .scalar()
+        )
+        flows.append({
+            'month': month.strftime('%Y-%m'),
+            'net_invested': float(net or 0.0)
+        })
+
+    return {'months': flows}
+
+
+def cashflow_sankey_data(month_str=None):
+    today = date.today()
+    if month_str:
+        try:
+            parsed = datetime.strptime(month_str, '%Y-%m').date()
+            month_start = date(parsed.year, parsed.month, 1)
+        except Exception:
+            month_start = date(today.year, today.month, 1)
+    else:
+        month_start = date(today.year, today.month, 1)
+
+    month_end = snapshots_service.month_end(month_start)
+
+    entries = (
+        JournalEntry.query.join(TransactionLine)
+        .filter(TransactionLine.date >= month_start)
+        .filter(TransactionLine.date <= month_end)
+        .distinct()
+        .order_by(JournalEntry.entry_date.asc())
+        .all()
+    )
+
+    accounts = Account.query.order_by(Account.account_type.asc(), Account.name.asc()).all()
+
+    return {
+        'month': month_start.strftime('%Y-%m'),
+        'accounts': [account_to_dict(a) for a in accounts],
+        'entries': [entry_to_dict(e, include_lines=True) for e in entries]
+    }
+
+
+def _safe_number(value):
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return num if num == num and num not in (float('inf'), float('-inf')) else 0.0
+
+
+def _parse_month_key(month_key):
+    if not month_key:
+        return None
+    try:
+        parsed = datetime.strptime(month_key, '%Y-%m').date()
+        return date(parsed.year, parsed.month, 1)
+    except Exception:
+        return None
+
+
+def _snapshot_to_dict(snapshot):
+    if not snapshot:
+        return None
+    return {
+        'report': 'financial_freedom_clock',
+        'net_worth': snapshot.net_worth,
+        'monthly_expenses': snapshot.monthly_expenses,
+        'monthly_saving': snapshot.monthly_saving,
+        'net_worth_change_last_month': snapshot.net_worth_change_last_month,
+        'months_funded': snapshot.months_funded,
+        'saving_coverage_pct': snapshot.saving_coverage_pct,
+        'days_freedom_gained': snapshot.days_freedom_gained,
+        'target_months': snapshot.target_months,
+        'freedom_progress_pct': snapshot.freedom_progress_pct,
+        'updated_month': snapshot.updated_month.isoformat()[:7] if snapshot.updated_month else None,
+        'has_data': bool(snapshot.has_data),
+        'created_at': isoformat_or_none(snapshot.created_at),
+        'updated_at': isoformat_or_none(snapshot.updated_at)
+    }
+
+
+def financial_freedom_clock_cached_report():
+    """Return cached Financial Freedom Clock metrics without recomputation."""
+    snapshot = (
+        FinancialFreedomClockSnapshot.query
+        .order_by(FinancialFreedomClockSnapshot.updated_at.desc(), FinancialFreedomClockSnapshot.id.desc())
+        .first()
+    )
+    if snapshot:
+        return _snapshot_to_dict(snapshot)
+    return {
+        'report': 'financial_freedom_clock',
+        'net_worth': None,
+        'monthly_expenses': None,
+        'monthly_saving': None,
+        'net_worth_change_last_month': None,
+        'months_funded': None,
+        'saving_coverage_pct': None,
+        'days_freedom_gained': None,
+        'target_months': 300,
+        'freedom_progress_pct': None,
+        'updated_month': None,
+        'has_data': False,
+        'created_at': None,
+        'updated_at': None
+    }
+
+
+def _compute_financial_freedom_clock_metrics(target_months=300):
+    """Compute Financial Freedom Clock metrics for refresh."""
+    networth_payload = networth_monthly_series_report()
+    savings_payload = net_savings_series_report()
+    expense_payload = expense_income_asset_report()
+
+    networth_months = networth_payload.get('months') or []
+    savings_months = savings_payload.get('months') or []
+    expense_months = expense_payload.get('months') or []
+
+    latest_networth = networth_months[-1] if networth_months else None
+    latest_savings = savings_months[-1] if savings_months else None
+    latest_expense = expense_months[-1] if expense_months else None
+
+    liquid_networth = None
+    networth_change = None
+    updated_month = None
+    if latest_networth:
+        updated_month = latest_networth.get('month')
+        liquid_networth = latest_networth.get('liquid_networth')
+        if liquid_networth is None:
+            liquid_networth = latest_networth.get('networth')
+        liquid_networth = _safe_number(liquid_networth)
+        networth_change = _safe_number(latest_networth.get('delta'))
+
+    monthly_saving = None
+    if latest_savings:
+        monthly_saving = _safe_number(latest_savings.get('net_savings'))
+
+    monthly_expenses = None
+    if latest_expense:
+        rolling_avg = latest_expense.get('rolling_avg_expense')
+        if rolling_avg is None:
+            rolling_avg = latest_expense.get('sum_expense')
+        monthly_expenses = abs(_safe_number(rolling_avg))
+        if monthly_expenses <= 0.00001:
+            monthly_expenses = None
+
+    months_funded = None
+    saving_coverage_pct = None
+    days_freedom_gained = None
+    freedom_progress_pct = None
+
+    if monthly_expenses is not None and monthly_expenses > 0:
+        if liquid_networth is not None:
+            months_funded = liquid_networth / monthly_expenses
+        if monthly_saving is not None:
+            saving_coverage_pct = (monthly_saving / monthly_expenses) * 100.0
+        if networth_change is not None:
+            days_freedom_gained = (networth_change / monthly_expenses) * 30.0
+
+    if months_funded is not None and target_months:
+        freedom_progress_pct = (months_funded / target_months) * 100.0
+
+    has_data = any([latest_networth, latest_savings, latest_expense])
+
+    return {
+        'net_worth': liquid_networth,
+        'monthly_expenses': monthly_expenses,
+        'monthly_saving': monthly_saving,
+        'net_worth_change_last_month': networth_change,
+        'months_funded': months_funded,
+        'saving_coverage_pct': saving_coverage_pct,
+        'days_freedom_gained': days_freedom_gained,
+        'target_months': target_months,
+        'freedom_progress_pct': freedom_progress_pct,
+        'updated_month': updated_month,
+        'has_data': has_data
+    }
+
+
+def refresh_financial_freedom_clock_report(target_months=300):
+    """Recompute metrics and persist them as a cached snapshot."""
+    metrics = _compute_financial_freedom_clock_metrics(target_months)
+
+    snapshot = (
+        FinancialFreedomClockSnapshot.query
+        .order_by(FinancialFreedomClockSnapshot.updated_at.desc(), FinancialFreedomClockSnapshot.id.desc())
+        .first()
+    )
+    if snapshot is None:
+        snapshot = FinancialFreedomClockSnapshot()
+        db.session.add(snapshot)
+
+    snapshot.target_months = int(target_months or 300)
+    snapshot.net_worth = metrics.get('net_worth')
+    snapshot.monthly_expenses = metrics.get('monthly_expenses')
+    snapshot.monthly_saving = metrics.get('monthly_saving')
+    snapshot.net_worth_change_last_month = metrics.get('net_worth_change_last_month')
+    snapshot.months_funded = metrics.get('months_funded')
+    snapshot.saving_coverage_pct = metrics.get('saving_coverage_pct')
+    snapshot.days_freedom_gained = metrics.get('days_freedom_gained')
+    snapshot.freedom_progress_pct = metrics.get('freedom_progress_pct')
+    snapshot.updated_month = _parse_month_key(metrics.get('updated_month'))
+    snapshot.has_data = bool(metrics.get('has_data'))
+
+    db.session.commit()
+    return _snapshot_to_dict(snapshot)
+
+
+def _get_cache_entry(key):
+    return DashboardPanelCache.query.filter_by(key=key).first()
+
+
+def _set_cache_entry(key, payload):
+    entry = _get_cache_entry(key)
+    if entry is None:
+        entry = DashboardPanelCache(key=key, payload_json=json.dumps(payload))
+        db.session.add(entry)
+    else:
+        entry.payload_json = json.dumps(payload)
+    return entry
+
+
+def _parse_cache_payload(entry):
+    if not entry:
+        return None
+    try:
+        return json.loads(entry.payload_json or '{}')
+    except Exception:
+        return None
+
+
+def dashboard_panels_cached_report():
+    """Return cached dashboard panel payloads without recomputation."""
+    networth_entry = _get_cache_entry('networth_monthly')
+    savings_entry = _get_cache_entry('net_savings_series')
+
+    networth_payload = _parse_cache_payload(networth_entry) or {'months': []}
+    savings_payload = _parse_cache_payload(savings_entry) or {'months': []}
+    freedom_payload = financial_freedom_clock_cached_report()
+
+    return {
+        'networth_monthly': networth_payload,
+        'net_savings_series': savings_payload,
+        'freedom_clock': freedom_payload,
+        'updated_at': isoformat_or_none(networth_entry.updated_at) if networth_entry else None
+    }
+
+
+def refresh_dashboard_panels(target_months=300):
+    """Recompute and cache all dashboard panels."""
+    networth_payload = networth_monthly_series_report()
+    savings_payload = net_savings_series_report()
+    freedom_payload = refresh_financial_freedom_clock_report(target_months)
+
+    _set_cache_entry('networth_monthly', networth_payload)
+    _set_cache_entry('net_savings_series', savings_payload)
+    db.session.commit()
+
+    return {
+        'networth_monthly': networth_payload,
+        'net_savings_series': savings_payload,
+        'freedom_clock': freedom_payload,
+        'updated_at': isoformat_or_none(datetime.utcnow())
+    }

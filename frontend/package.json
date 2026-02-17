@@ -1,0 +1,29 @@
+{
+  "name": "perfinpy-sveltekit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "svelte-kit sync && vite dev",
+    "build": "svelte-kit sync && vite build",
+    "preview": "svelte-kit preview",
+    "start": "node build",
+    "postinstall": "node scripts/fix-css-tree.cjs && node scripts/fix-svelte-kit.cjs",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "5.2.9",
+    "@sveltejs/kit": "2.6.4",
+    "@sveltejs/vite-plugin-svelte": "3.1.2",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "svelte": "4.2.18",
+    "svelte-check": "4.0.4",
+    "tailwindcss": "^3.4.19",
+    "vite": "5.4.6"
+  },
+  "dependencies": {
+    "css-tree": "^2.3.1",
+    "layerchart": "^1.0.13"
+  }
+}
