@@ -291,14 +291,14 @@
           axis="y"
           grid={{ y: true, x: false, classes: { line: "target-grid-line" } }}
           rule={false}
-          padding={{ top: 12, right: 24, bottom: 24, left: 56 }}
+          padding={{ top: 12, right: 28, bottom: 24, left: 72 }}
           props={{
             yAxis: {
               ticks: 4,
               tickLength: 0,
               format: (value) => formatCrore(value),
-              tickLabelProps: { class: "target-axis-label" },
-              classes: { rule: "hidden", tick: "hidden" }
+              tickLabelProps: { class: "target-axis-label", fill: "#64748b" },
+              classes: { rule: "hidden" }
             },
             area: {
               curve: curveMonotoneX,
