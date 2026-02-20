@@ -41,7 +41,25 @@
   $: savingValue = metrics.currentSaving;
   $: avgValue = metrics.avgPrev12Saving;
   $: savingPct = metrics.savingPctOfIncome;
-  $: savingDelta = savingValue !== null && avgValue !== null ? savingValue - avgValue : null;
+  $: today = new Date();
+  $: currentMonthKey = metrics.current ? metrics.current.month : "";
+  $: currentMonthYear = currentMonthKey ? Number(currentMonthKey.split("-")[0]) : null;
+  $: currentMonthIndex = currentMonthKey ? Number(currentMonthKey.split("-")[1]) - 1 : null;
+  $: isCurrentMonth =
+    currentMonthYear !== null &&
+    currentMonthIndex !== null &&
+    currentMonthYear === today.getFullYear() &&
+    currentMonthIndex === today.getMonth();
+  $: daysInCurrentMonth =
+    currentMonthYear !== null && currentMonthIndex !== null
+      ? new Date(currentMonthYear, currentMonthIndex + 1, 0).getDate()
+      : new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  $: monthProgress = isCurrentMonth
+    ? (daysInCurrentMonth ? today.getDate() / daysInCurrentMonth : 0)
+    : 1;
+  $: proratedAvg = avgValue !== null ? avgValue * monthProgress : null;
+  $: savingDelta = savingValue !== null && proratedAvg !== null ? savingValue - proratedAvg : null;
+  $: savingDeltaAbs = savingDelta !== null ? Math.abs(savingDelta) : null;
   $: savingClass =
     savingDelta === null ? "text-gray-400" : savingDelta >= 0 ? "text-emerald-600" : "text-rose-600";
   $: savingBadgeBg =
@@ -56,8 +74,8 @@
   <div slot="body" class="mt-4 flex flex-wrap gap-2">
     <span class={`rounded-full px-3 py-1 text-xs font-semibold ${savingClass} ${savingBadgeBg}`}>
       {savingDelta !== null
-        ? `vs 12m avg ${savingDelta >= 0 ? "↑" : "↓"} ${formatInr(savingDelta)}`
-        : "vs 12m avg --"}
+        ? `vs 12m avg (pro-rated) ${savingDelta >= 0 ? "↑" : "↓"} ${formatInr(savingDeltaAbs)}`
+        : "vs 12m avg (pro-rated) --"}
     </span>
     <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
       {savingPct !== null ? `${savingPct.toFixed(1)}% of income` : "% of income --"}
