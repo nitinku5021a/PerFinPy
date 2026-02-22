@@ -12,8 +12,13 @@
 
   function formatMoney(value) {
     const num = Number(value || 0);
-    const prefix = num < 0 ? "-₹ " : "₹ ";
+    const prefix = num < 0 ? "-" : "";
     return `${prefix}${formatInr(Math.abs(num))}`;
+  }
+
+  function formatMoneyAbs(value) {
+    const num = Number(value || 0);
+    return `${formatInr(Math.abs(num))}`;
   }
 
   function monthName(monthNumber) {
@@ -24,6 +29,19 @@
   function formatPct(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
     return `${Number(value).toFixed(2)}%`;
+  }
+
+  function formatChange(amount, pct) {
+    if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return "--";
+    if (pct === null || pct === undefined || Number.isNaN(Number(pct))) return "--";
+    return `${formatMoneyAbs(amount)} (${formatPct(Math.abs(pct))})`;
+  }
+
+  function changeClass(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
+    if (value > 0) return "positive";
+    if (value < 0) return "negative";
+    return "";
   }
 
   function toggleYear(year) {
@@ -50,13 +68,52 @@
     }
   });
 
-  $: yearSummaryByYear = Object.fromEntries((yearRows || []).map((row) => [row.year, row]));
+  $: enrichedYearRows = (() => {
+    const rows = (yearRows || []).map((row) => ({ ...row, asset_yoy_change: null }));
+    const sortedAsc = [...rows].sort((a, b) => a.year - b.year);
+    for (let i = 1; i < sortedAsc.length; i += 1) {
+      const row = sortedAsc[i];
+      const prev = sortedAsc[i - 1];
+      row.asset_yoy_change = row.max_asset - prev.max_asset;
+    }
+    return rows;
+  })();
+
+  $: yearSummaryByYear = Object.fromEntries((enrichedYearRows || []).map((row) => [row.year, row]));
+
+  $: enrichedMonthRows = (() => {
+    const rows = (monthRows || []).map((row) => ({
+      ...row,
+      asset_mom_change: null,
+      asset_yoy_change: null
+    }));
+    const byKey = new Map(
+      rows.map((row) => [`${row.year}-${String(row.month_number).padStart(2, "0")}`, row])
+    );
+    const sortedAsc = [...rows].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month_number - b.month_number;
+    });
+    for (let i = 0; i < sortedAsc.length; i += 1) {
+      const row = sortedAsc[i];
+      if (i > 0) {
+        const prev = sortedAsc[i - 1];
+        row.asset_mom_change = row.max_asset - prev.max_asset;
+      }
+      const prevKey = `${row.year - 1}-${String(row.month_number).padStart(2, "0")}`;
+      const prevYearRow = byKey.get(prevKey);
+      if (prevYearRow) {
+        row.asset_yoy_change = row.max_asset - prevYearRow.max_asset;
+      }
+    }
+    return rows;
+  })();
 
   $: grouped = (() => {
     const groupedMap = new Map();
-    const sortedMonths = [...(monthRows || [])].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month_number - b.month_number;
+    const sortedMonths = [...(enrichedMonthRows || [])].sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month_number - a.month_number;
     });
     for (const row of sortedMonths) {
       if (!groupedMap.has(row.year)) {
@@ -87,6 +144,10 @@
   </select>
 </div>
 
+<p class="meta" title="Color legend for change values">
+  <span class="positive">Green = positive change</span> · <span class="negative">Red = negative change</span>
+</p>
+
 {#if loading}
   <p class="meta">Loading report...</p>
 {:else}
@@ -99,8 +160,8 @@
           <th class="num">Sum of Expense</th>
           <th class="num">Max of Asset</th>
           <th class="num">Rolling Avg. Expense (12M)</th>
-          <th class="num">Asset MoM Change %</th>
-          <th class="num">Asset YoY (Same Month) Change %</th>
+          <th class="num">Asset MoM Change (%)</th>
+          <th class="num">Asset YoY (Same Month) Change (%)</th>
           <th class="num">Saving % of Income</th>
           <th class="num">Saving % of Expense</th>
         </tr>
@@ -128,7 +189,12 @@
             <td class="num">{formatMoney(yearGroup.summary?.max_asset || 0)}</td>
             <td class="num">--</td>
             <td class="num">--</td>
-            <td class="num">{formatPct(yearGroup.summary?.asset_yoy_change_pct)}</td>
+            <td class={`num ${changeClass(yearGroup.summary?.asset_yoy_change)}`}>
+              {formatChange(
+                yearGroup.summary?.asset_yoy_change,
+                yearGroup.summary?.asset_yoy_change_pct
+              )}
+            </td>
             <td class="num">{formatPct(yearGroup.summary?.savings_pct_income)}</td>
             <td class="num">{formatPct(yearGroup.summary?.savings_pct_expense)}</td>
           </tr>
@@ -141,8 +207,12 @@
                 <td class="num">{formatMoney(month.sum_expense)}</td>
                 <td class="num">{formatMoney(month.max_asset)}</td>
                 <td class="num">{formatMoney(month.rolling_avg_expense)}</td>
-                <td class="num">{formatPct(month.asset_mom_change_pct)}</td>
-                <td class="num">{formatPct(month.asset_yoy_change_pct)}</td>
+                <td class={`num ${changeClass(month.asset_mom_change)}`}>
+                  {formatChange(month.asset_mom_change, month.asset_mom_change_pct)}
+                </td>
+                <td class={`num ${changeClass(month.asset_yoy_change)}`}>
+                  {formatChange(month.asset_yoy_change, month.asset_yoy_change_pct)}
+                </td>
                 <td class="num">{formatPct(month.savings_pct_income)}</td>
                 <td class="num">{formatPct(month.savings_pct_expense)}</td>
               </tr>
