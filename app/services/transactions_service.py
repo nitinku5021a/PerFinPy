@@ -107,8 +107,6 @@ def list_transactions(page, period, account_id):
             val = sums.get(acc.id, 0.0)
             if acc.account_type == 'Income':
                 val = abs(val)
-            elif acc.account_type == 'Expense':
-                val = -abs(val)
             if abs(val) > 0.005:
                 type_groups[acc.account_type].append({
                     'account_id': acc.id,
