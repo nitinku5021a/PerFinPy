@@ -600,7 +600,7 @@ def net_savings_series_report():
             if type_by_id[acc_id] == 'Income':
                 income += abs(val)
             else:
-                expense += abs(val)
+                expense += val
         net = income - expense
         pct = None
         if income > 0.00001:
@@ -760,15 +760,15 @@ def expense_income_asset_report():
             asset_cumulative = {row[0]: row[1] for row in asset_rows}
 
         sum_income = sum(abs(income_sums.get(acc_id, 0.0)) for acc_id in income_ids)
-        sum_expense = -sum(abs(expense_sums.get(acc_id, 0.0)) for acc_id in expense_ids)
+        sum_expense = sum(expense_sums.get(acc_id, 0.0) for acc_id in expense_ids)
         max_asset = sum(asset_opening.get(acc_id, 0.0) + asset_cumulative.get(acc_id, 0.0) for acc_id in asset_ids)
-        savings = sum_income + sum_expense
+        savings = sum_income - sum_expense
         savings_pct_income = None
         if abs(sum_income) > 0.00001:
             savings_pct_income = (savings / sum_income) * 100.0
         savings_pct_expense = None
         if abs(sum_expense) > 0.00001:
-            savings_pct_expense = (savings / abs(sum_expense)) * 100.0
+            savings_pct_expense = (savings / sum_expense) * 100.0
 
         rows.append({
             'month': month.strftime('%Y-%m'),
@@ -825,7 +825,7 @@ def expense_income_asset_report():
     year_rows = [yearly[year] for year in sorted(yearly.keys())]
     prev_year = None
     for year_row in year_rows:
-        year_savings = year_row['sum_income'] + year_row['sum_expense']
+        year_savings = year_row['sum_income'] - year_row['sum_expense']
         year_row['rolling_avg_expense'] = None
         year_row['asset_mom_change_pct'] = None
         year_row['asset_yoy_change_pct'] = None
@@ -834,7 +834,7 @@ def expense_income_asset_report():
             year_row['savings_pct_income'] = (year_savings / year_row['sum_income']) * 100.0
         year_row['savings_pct_expense'] = None
         if abs(year_row['sum_expense']) > 0.00001:
-            year_row['savings_pct_expense'] = (year_savings / abs(year_row['sum_expense'])) * 100.0
+            year_row['savings_pct_expense'] = (year_savings / year_row['sum_expense']) * 100.0
         if prev_year is not None:
             prev_asset = prev_year['max_asset']
             if abs(prev_asset) > 0.00001:
