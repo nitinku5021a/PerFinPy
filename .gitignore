@@ -43,3 +43,5 @@ pnpm-debug.log*
 # OS
 Thumbs.db
 Desktop.ini
+tmp/
+

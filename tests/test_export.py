@@ -3,7 +3,7 @@ from datetime import date
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app, db
-from app.models import Account, JournalEntry, TransactionLine, MonthlyBudget, BudgetEntryAssignment
+from app.models import Account, JournalEntry, TransactionLine, MonthlyBudget, BudgetEntryAssignment, GoalSetting, Goal
 from openpyxl import load_workbook
 
 def test_export_transactions():
@@ -38,6 +38,10 @@ def test_export_transactions():
         db.session.add(mb)
         db.session.flush()
         db.session.add(BudgetEntryAssignment(month=date(2026, 1, 1), journal_entry_id=je.id, owner='Guchi'))
+
+        goal_settings = GoalSetting(interest_rate=7.5)
+        db.session.add(goal_settings)
+        db.session.add(Goal(description='Car fund', target_corpus=500000.0, target_year=2030, current_corpus=150000.0))
         db.session.commit()
 
         client = app.test_client()
@@ -81,6 +85,22 @@ def test_export_transactions():
         first_assignment = [c.value for c in ba_rows[1]]
         assert first_assignment[0] == '2026-01'
         assert first_assignment[4] == 'Guchi'
+
+        # Goals sheets should be present
+        assert 'Goals Settings' in wb.sheetnames
+        gs_ws = wb['Goals Settings']
+        gs_rows = list(gs_ws.rows)
+        assert len(gs_rows) >= 2
+        gs_header = [c.value for c in gs_rows[0]]
+        assert gs_header == ['Interest Rate %']
+        assert gs_rows[1][0].value == 7.5
+
+        assert 'Goals' in wb.sheetnames
+        goals_ws = wb['Goals']
+        goals_rows = list(goals_ws.rows)
+        assert len(goals_rows) >= 2
+        goals_header = [c.value for c in goals_rows[0]]
+        assert goals_header == ['Goal ID', 'Description', 'Target Corpus', 'Target Year', 'Current Corpus']
 
         # spot-check a data row
         first_row = [c.value for c in rows[1]]

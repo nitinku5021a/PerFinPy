@@ -24,6 +24,8 @@ def create_app(config_class=Config):
             BudgetEntryAssignment,
             ReminderTask,
             ReminderOccurrence,
+            GoalSetting,
+            Goal,
             FinancialFreedomClockSnapshot,
             DashboardPanelCache
         )
@@ -47,11 +49,12 @@ def create_app(config_class=Config):
             db.session.rollback()
     
     # Register blueprints
-    from app.routes import main, transactions, reports, budget, reminders
+    from app.routes import main, transactions, reports, budget, reminders, goals
     app.register_blueprint(main.bp)
     app.register_blueprint(transactions.bp)
     app.register_blueprint(reports.bp)
     app.register_blueprint(budget.bp)
     app.register_blueprint(reminders.bp)
+    app.register_blueprint(goals.bp)
     
     return app

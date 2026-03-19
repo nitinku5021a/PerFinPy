@@ -287,6 +287,34 @@ class MonthlyPnL(db.Model):
         return f'<MonthlyPnL {self.month} profit={self.profit}>'
 
 
+class GoalSetting(db.Model):
+    """Global settings for goals page (interest rate)."""
+    __tablename__ = 'goal_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    interest_rate = db.Column(db.Float, nullable=False, default=0.0)  # annual % rate
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<GoalSetting id={self.id} rate={self.interest_rate}>'
+
+
+class Goal(db.Model):
+    """Savings/investment goals."""
+    __tablename__ = 'goals'
+
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(255), nullable=False)
+    target_corpus = db.Column(db.Float, nullable=False, default=0.0)
+    target_year = db.Column(db.Integer, nullable=False)
+    current_corpus = db.Column(db.Float, nullable=False, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Goal {self.id} {self.description}>'
+
+
 class FinancialFreedomClockSnapshot(db.Model):
     """Cached Financial Freedom Clock metrics."""
     __tablename__ = 'financial_freedom_clock_snapshot'

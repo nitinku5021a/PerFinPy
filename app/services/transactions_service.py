@@ -13,6 +13,8 @@ from app.models import (
     BudgetEntryAssignment,
     ReminderTask,
     ReminderOccurrence,
+    GoalSetting,
+    Goal,
     FinancialFreedomClockSnapshot,
     DashboardPanelCache
 )
@@ -573,6 +575,12 @@ def export_transactions(period):
     budget_assignments_ws = wb.create_sheet('Budget Assignments')
     budget_assignments_ws.append(['Month', 'JE ID', 'Entry Date', 'Description', 'Owner'])
 
+    goals_settings_ws = wb.create_sheet('Goals Settings')
+    goals_settings_ws.append(['Interest Rate %'])
+
+    goals_ws = wb.create_sheet('Goals')
+    goals_ws.append(['Goal ID', 'Description', 'Target Corpus', 'Target Year', 'Current Corpus'])
+
     reminder_tasks_ws = wb.create_sheet('Reminders Tasks')
     reminder_tasks_ws.append(['Task ID', 'Title', 'Notes', 'Due Day Of Month', 'Is Active'])
 
@@ -661,6 +669,20 @@ def export_transactions(period):
             je.entry_date.strftime('%Y-%m-%d') if je and je.entry_date else '',
             je.description if je else '',
             item.owner or 'None'
+        ])
+
+    goal_settings = GoalSetting.query.order_by(GoalSetting.id.asc()).first()
+    if goal_settings:
+        goals_settings_ws.append([float(goal_settings.interest_rate or 0.0)])
+
+    goals = Goal.query.order_by(Goal.id.asc()).all()
+    for goal in goals:
+        goals_ws.append([
+            goal.id,
+            goal.description or '',
+            float(goal.target_corpus or 0.0),
+            int(goal.target_year or 0),
+            float(goal.current_corpus or 0.0)
         ])
 
     reminder_tasks = ReminderTask.query.order_by(ReminderTask.id.asc()).all()

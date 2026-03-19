@@ -13,6 +13,8 @@ from app.models import (
     BudgetEntryAssignment,
     ReminderTask,
     ReminderOccurrence,
+    GoalSetting,
+    Goal,
     FinancialFreedomClockSnapshot,
     DashboardPanelCache
 )
@@ -490,6 +492,70 @@ def import_transactions_from_excel(file_stream):
                         db.session.add(assignment)
                 except Exception as e:
                     results['warnings'].append(f"Budget Assignments row {row_idx}: {str(e)}")
+
+        # Import Goals Settings, if present
+        if 'Goals Settings' in workbook.sheetnames:
+            gs_ws = workbook['Goals Settings']
+            for row_idx, row in enumerate(gs_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    rate = float(row[0] or 0.0)
+                    settings = GoalSetting.query.order_by(GoalSetting.id.asc()).first()
+                    if settings is None:
+                        settings = GoalSetting(interest_rate=rate)
+                        db.session.add(settings)
+                    else:
+                        settings.interest_rate = rate
+                except Exception as e:
+                    results['warnings'].append(f"Goals Settings row {row_idx}: {str(e)}")
+
+        # Import Goals, if present
+        if 'Goals' in workbook.sheetnames:
+            goals_ws = workbook['Goals']
+            for row_idx, row in enumerate(goals_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    goal_id = None
+                    if len(row) > 0 and row[0] not in (None, ''):
+                        goal_id = int(row[0])
+
+                    description = str(row[1] or '').strip() if len(row) > 1 else ''
+                    if not description:
+                        raise ValueError('Description is required')
+
+                    target_corpus = float(row[2] or 0.0) if len(row) > 2 else 0.0
+                    target_year = int(row[3] or 0) if len(row) > 3 else 0
+                    current_corpus = float(row[4] or 0.0) if len(row) > 4 else 0.0
+
+                    goal = None
+                    if goal_id is not None:
+                        goal = Goal.query.get(goal_id)
+
+                    if goal is None:
+                        goal = (
+                            Goal.query
+                            .filter(db.func.lower(Goal.description) == description.lower())
+                            .filter(Goal.target_year == target_year)
+                            .first()
+                        )
+
+                    if goal:
+                        goal.description = description
+                        goal.target_corpus = target_corpus
+                        goal.target_year = target_year
+                        goal.current_corpus = current_corpus
+                    else:
+                        goal = Goal(
+                            description=description,
+                            target_corpus=target_corpus,
+                            target_year=target_year,
+                            current_corpus=current_corpus
+                        )
+                        db.session.add(goal)
+                except Exception as e:
+                    results['warnings'].append(f"Goals row {row_idx}: {str(e)}")
 
         # Import Reminder Tasks, if present
         reminder_task_id_map = {}

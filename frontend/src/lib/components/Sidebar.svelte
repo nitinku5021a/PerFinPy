@@ -7,17 +7,20 @@
     { href: "/income-statement", label: "Income Statement" },
     { href: "/transactions", label: "Monthly Transactions" },
     { href: "/reminders", label: "Reminders" },
-    { href: "/report", label: "Reports" }
+    { href: "/report", label: "Reports" },
+    { href: "/monthly-budget", label: "Monthly Budget" }
   ];
 
   const otherLinks = [
     { href: "/accounts", label: "Accounts" },
     { href: "/ledger", label: "Ledger" },
     { href: "/investments", label: "Investments" },
-    { href: "/monthly-budget", label: "Monthly Budget" },
+    { href: "/goals", label: "Goals" },
     { href: "/wealth-report", label: "Wealth Report" },
     { href: "/trial-balance", label: "Trial Balance" },
-    { href: "/journal-entries", label: "Journal Entries" }
+    { href: "/journal-entries", label: "Journal Entries" },
+    { href: "/retirement-bucket-simulator", label: "Retirement Buckets" },
+    { href: "/corpus-projection", label: "Corpus Projection" }
   ];
 </script>
 
@@ -37,3 +40,5 @@
     {/each}
   </nav>
 </aside>
+
+

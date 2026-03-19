@@ -1344,3 +1344,18 @@ a:hover {
     font-size: 13px;
   }
 }
+
+.table tbody tr:hover {
+  background: var(--panel-muted);
+}
+
+.table tbody tr.total-row td {
+  font-weight: 600;
+  background: var(--panel-muted);
+  border-top: 2px solid var(--border);
+}
+
+.table tbody tr.total-row:hover td {
+  background: var(--panel-muted);
+}
+

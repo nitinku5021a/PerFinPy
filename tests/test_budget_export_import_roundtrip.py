@@ -11,7 +11,9 @@ from app.models import (
     JournalEntry,
     TransactionLine,
     MonthlyBudget,
-    BudgetEntryAssignment
+    BudgetEntryAssignment,
+    GoalSetting,
+    Goal
 )
 from app.services.transactions_service import export_transactions
 from app.utils.excel_import import import_transactions_from_excel
@@ -47,6 +49,8 @@ def test_budget_export_import_roundtrip():
         )
         db.session.flush()
         db.session.add(BudgetEntryAssignment(month=date(2026, 1, 1), journal_entry_id=je.id, owner="Gunu"))
+        db.session.add(GoalSetting(interest_rate=8.25))
+        db.session.add(Goal(description="House", target_corpus=2500000.0, target_year=2032, current_corpus=500000.0))
         db.session.commit()
 
         stream = export_transactions("all")
@@ -72,3 +76,13 @@ def test_budget_export_import_roundtrip():
         assert assignment is not None
         assert assignment.month == date(2026, 1, 1)
         assert assignment.owner == "Gunu"
+
+        settings = GoalSetting.query.order_by(GoalSetting.id.asc()).first()
+        assert settings is not None
+        assert settings.interest_rate == 8.25
+
+        goal = Goal.query.filter_by(description="House").first()
+        assert goal is not None
+        assert goal.target_corpus == 2500000.0
+        assert goal.target_year == 2032
+        assert goal.current_corpus == 500000.0

@@ -30,3 +30,16 @@ export async function apiDelete(path) {
   }
   return res.json();
 }
+
+export async function apiPut(path, body) {
+  const res = await fetch(`/api${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {})
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
