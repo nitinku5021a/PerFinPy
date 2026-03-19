@@ -12,9 +12,9 @@
     return Number(num || 0).toLocaleString("en-IN");
   }
 
-  function generateProjections() {
-    const monthlyRate = interestRate / 12 / 100;
-    let corpus = startingCorpus;
+  function generateProjections(startCorpus, monthlySavingAmount, annualRate, totalYears) {
+    const monthlyRate = annualRate / 12 / 100;
+    let corpus = startCorpus;
     const monthlyData = [];
     const yearlyData = [];
 
@@ -22,9 +22,9 @@
     const yearStart = today.getFullYear();
     const monthStart = today.getMonth();
 
-    for (let m = 0; m < years * 12; m += 1) {
+    for (let m = 0; m < totalYears * 12; m += 1) {
       const interest = corpus * monthlyRate;
-      corpus += interest + monthlySaving;
+      corpus += interest + monthlySavingAmount;
 
       monthlyData.push({
         month: new Date(yearStart, monthStart + m).toLocaleString("en-IN", {
@@ -48,7 +48,7 @@
     return { monthlyData, yearlyData };
   }
 
-  $: projections = generateProjections();
+  $: projections = generateProjections(startingCorpus, monthlySaving, interestRate, years);
   $: monthlyData = projections.monthlyData;
   $: yearlyData = projections.yearlyData;
   $: chartMin = yearlyData.length ? Math.min(...yearlyData.map((d) => d.corpus)) : 0;
@@ -293,3 +293,5 @@
     }
   }
 </style>
+
+
