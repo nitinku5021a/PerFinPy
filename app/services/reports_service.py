@@ -109,6 +109,12 @@ def _sum_balance_for_roots(roots, balance_map):
     return total
 
 
+def _income_expense_display_value(account_type, value):
+    if account_type == 'Income':
+        return -value
+    return value
+
+
 def get_net_income(start_date=None, end_date=None):
     """Calculate net income for a period"""
     incomes = Account.query.filter_by(account_type='Income').all()
@@ -122,7 +128,7 @@ def get_net_income(start_date=None, end_date=None):
 
     total_income = 0
     for acc in incomes:
-        total_income += abs(balance_map.get(acc.id, 0.0))
+        total_income += _income_expense_display_value(acc.account_type, balance_map.get(acc.id, 0.0))
 
     total_expenses = 0
     for acc in expenses:
@@ -185,8 +191,8 @@ def income_statement_report(period, show_zero):
     income_accounts = build_two_level_tree(income_roots, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
     expense_accounts = build_two_level_tree(expense_roots, start_date, end_date, show_zero=show_zero, balance_map=balance_map)
 
-    total_income = sum(abs(item['balance']) for item in income_accounts)
-    total_expenses = sum(item['balance'] for item in expense_accounts)
+    total_income = _income_expense_display_value('Income', _sum_balance_for_roots(income_roots, balance_map))
+    total_expenses = _sum_balance_for_roots(expense_roots, balance_map)
     net_income = total_income - total_expenses
 
     return {
@@ -459,9 +465,7 @@ def income_matrix_report(start_month_str=None):
                 acc_monthly = {}
                 for m in month_keys:
                     val = balances_by_month[m].get(acc.id, 0.0)
-                    if type_by_id[acc.id] == 'Income':
-                        val = abs(val)
-                    acc_monthly[m] = val
+                    acc_monthly[m] = _income_expense_display_value(type_by_id[acc.id], val)
                 parent_payload['accounts'].append({
                     'name': name_by_id[acc.id].split(':')[-1],
                     'account_id': acc.id,
@@ -473,9 +477,7 @@ def income_matrix_report(start_month_str=None):
                 total = 0.0
                 for aid in ids:
                     val = balances_by_month[m].get(aid, 0.0)
-                    if type_by_id.get(aid) == 'Income':
-                        val = abs(val)
-                    total += val
+                    total += _income_expense_display_value(type_by_id.get(aid), val)
                 parent_payload['monthly_balances'][m] = total
 
             group_payload['parents'].append(parent_payload)
@@ -598,7 +600,7 @@ def net_savings_series_report():
         for acc_id in account_ids:
             val = sums.get(acc_id, 0.0)
             if type_by_id[acc_id] == 'Income':
-                income += abs(val)
+                income += _income_expense_display_value(type_by_id[acc_id], val)
             else:
                 expense += val
         net = income - expense
@@ -695,7 +697,7 @@ def expense_income_asset_report():
     max_date = DailyAccountBalance.query.with_entities(func.max(DailyAccountBalance.date)).scalar()
     min_date = DailyAccountBalance.query.with_entities(func.min(DailyAccountBalance.date)).scalar()
     if not max_date or not min_date:
-        return {'months': [], 'years': []}
+        return {'months': [], 'years': [], 'breakdown_options': []}
 
     min_month = date(min_date.year, min_date.month, 1)
     max_month = date(max_date.year, max_date.month, 1)
@@ -709,6 +711,22 @@ def expense_income_asset_report():
     expense_ids = [a.id for a in expense_accounts]
     asset_ids = [a.id for a in asset_accounts]
     asset_opening = {a.id: (a.opening_balance or 0.0) for a in asset_accounts}
+    breakdown_defs = []
+    for account_type, accounts in (('Income', income_accounts), ('Expense', expense_accounts)):
+        leaf_accounts = sorted(
+            [acc for acc in accounts if acc.is_leaf()],
+            key=lambda acc: (acc.get_path() or acc.name).lower()
+        )
+        for root in leaf_accounts:
+            path = root.get_path() or root.name
+            breakdown_defs.append({
+                'key': f'{account_type}:{root.id}',
+                'type': account_type.lower(),
+                'label': f'{account_type}: {path}',
+                'short_label': root.name,
+                'account_ids': [root.id]
+            })
+    breakdown_totals = {item['key']: 0.0 for item in breakdown_defs}
 
     rows = []
     for month in months:
@@ -759,8 +777,21 @@ def expense_income_asset_report():
             )
             asset_cumulative = {row[0]: row[1] for row in asset_rows}
 
-        sum_income = sum(abs(income_sums.get(acc_id, 0.0)) for acc_id in income_ids)
+        sum_income = sum(
+            _income_expense_display_value('Income', income_sums.get(acc_id, 0.0))
+            for acc_id in income_ids
+        )
         sum_expense = sum(expense_sums.get(acc_id, 0.0) for acc_id in expense_ids)
+        breakdowns = {}
+        for item in breakdown_defs:
+            account_type = 'Income' if item['type'] == 'income' else 'Expense'
+            source = income_sums if item['type'] == 'income' else expense_sums
+            value = sum(
+                _income_expense_display_value(account_type, source.get(acc_id, 0.0))
+                for acc_id in item['account_ids']
+            )
+            breakdowns[item['key']] = value
+            breakdown_totals[item['key']] += value
         max_asset = sum(asset_opening.get(acc_id, 0.0) + asset_cumulative.get(acc_id, 0.0) for acc_id in asset_ids)
         savings = sum_income - sum_expense
         savings_pct_income = None
@@ -780,6 +811,7 @@ def expense_income_asset_report():
             'rolling_avg_expense': None,
             'asset_mom_change_pct': None,
             'asset_yoy_change_pct': None,
+            'breakdowns': breakdowns,
             'savings_pct_income': savings_pct_income,
             'savings_pct_expense': savings_pct_expense
         })
@@ -816,11 +848,14 @@ def expense_income_asset_report():
                 'year': year,
                 'sum_income': 0.0,
                 'sum_expense': 0.0,
-                'max_asset': row['max_asset']
+                'max_asset': row['max_asset'],
+                'breakdowns': {item['key']: 0.0 for item in breakdown_defs}
             }
         yearly[year]['sum_income'] += row['sum_income']
         yearly[year]['sum_expense'] += row['sum_expense']
         yearly[year]['max_asset'] = max(yearly[year]['max_asset'], row['max_asset'])
+        for key, value in row['breakdowns'].items():
+            yearly[year]['breakdowns'][key] += value
 
     year_rows = [yearly[year] for year in sorted(yearly.keys())]
     prev_year = None
@@ -841,7 +876,25 @@ def expense_income_asset_report():
                 year_row['asset_yoy_change_pct'] = ((year_row['max_asset'] - prev_asset) / abs(prev_asset)) * 100.0
         prev_year = year_row
 
-    return {'months': rows, 'years': year_rows}
+    breakdown_options = sorted(
+        [
+            {
+                'key': item['key'],
+                'type': item['type'],
+                'label': item['label'],
+                'short_label': item['short_label'],
+                'total': breakdown_totals[item['key']]
+            }
+            for item in breakdown_defs
+        ],
+        key=lambda item: (
+            0 if item['type'] == 'income' else 1,
+            -abs(item['total']),
+            item['short_label'].lower()
+        )
+    )
+
+    return {'months': rows, 'years': year_rows, 'breakdown_options': breakdown_options}
 
 
 def investment_flows_report(account_ids, months=13):

@@ -7,6 +7,9 @@
   let error = "";
   let monthRows = [];
   let yearRows = [];
+  let breakdownOptions = [];
+  let selectedBreakdownKeys = [];
+  let breakdownPickerOpen = false;
   let viewMode = "year_month";
   let expandedYears = new Set();
 
@@ -54,12 +57,28 @@
     expandedYears = next;
   }
 
+  function defaultBreakdownKeys(options) {
+    const active = (options || []).filter((item) => Math.abs(Number(item.total) || 0) > 0.005);
+    const incomes = active.filter((item) => item.type === "income").slice(0, 2);
+    const expenses = active.filter((item) => item.type === "expense").slice(0, 2);
+    return [...incomes, ...expenses].map((item) => item.key);
+  }
+
+  function breakdownPickerLabel(options, keys) {
+    if (!keys.length) return "Select leaf heads";
+    const selected = (options || []).filter((item) => keys.includes(item.key));
+    if (selected.length <= 2) return selected.map((item) => item.short_label).join(", ");
+    return `${selected.length} selected`;
+  }
+
   onMount(async () => {
     loading = true;
     try {
       const payload = await apiGet("/reports/expense-income-asset");
       monthRows = payload?.months || [];
       yearRows = payload?.years || [];
+      breakdownOptions = payload?.breakdown_options || [];
+      selectedBreakdownKeys = defaultBreakdownKeys(payload?.breakdown_options || []);
       expandedYears = new Set((payload?.years || []).map((row) => row.year));
     } catch (err) {
       error = err?.message || "Failed to load report data.";
@@ -127,6 +146,10 @@
       summary: yearSummaryByYear[year]
     }));
   })();
+
+  $: selectedBreakdowns = (breakdownOptions || []).filter((item) =>
+    selectedBreakdownKeys.includes(item.key)
+  );
 </script>
 
 <h1 class="page-title">Report</h1>
@@ -144,20 +167,74 @@
   </select>
 </div>
 
+{#if breakdownOptions.length}
+  <div class="toolbar report-breakdown-toolbar">
+    <label for="breakdown-picker">Breakdown Columns</label>
+    <details
+      id="breakdown-picker"
+      class="report-breakdown-dropdown"
+      bind:open={breakdownPickerOpen}
+    >
+      <summary>{breakdownPickerLabel(breakdownOptions, selectedBreakdownKeys)}</summary>
+      <div class="report-breakdown-menu">
+        <div class="report-breakdown-actions">
+          <button
+            class="button"
+            type="button"
+            on:click={() => (selectedBreakdownKeys = defaultBreakdownKeys(breakdownOptions))}
+          >
+            Default
+          </button>
+          <button
+            class="button"
+            type="button"
+            disabled={selectedBreakdownKeys.length === breakdownOptions.length}
+            on:click={() => (selectedBreakdownKeys = breakdownOptions.map((item) => item.key))}
+          >
+            All
+          </button>
+          <button
+            class="button"
+            type="button"
+            disabled={selectedBreakdownKeys.length === 0}
+            on:click={() => (selectedBreakdownKeys = [])}
+          >
+            Clear
+          </button>
+        </div>
+        <div class="report-breakdown-list">
+          {#each breakdownOptions as option}
+            <label class="report-breakdown-option">
+              <input type="checkbox" bind:group={selectedBreakdownKeys} value={option.key} />
+              <span>{option.label}</span>
+            </label>
+          {/each}
+        </div>
+      </div>
+    </details>
+  </div>
+{/if}
+
 <p class="meta" title="Color legend for change values">
-  <span class="positive">Green = positive change</span> · <span class="negative">Red = negative change</span>
+  <span class="positive">Green = positive change</span> | <span class="negative">Red = negative change</span>
 </p>
 
 {#if loading}
   <p class="meta">Loading report...</p>
 {:else}
   <div class="table-wrap">
-    <table class="table">
+    <table class="table matrix-table report-table">
       <thead>
         <tr>
-          <th>Row Labels</th>
+          <th class="sticky-col sticky-col-1">Row Labels</th>
           <th class="num">Sum of Income</th>
           <th class="num">Sum of Expense</th>
+          {#each selectedBreakdowns as option}
+            <th class="num report-breakdown-head" title={option.label}>
+              <span class="report-breakdown-type">{option.type === "income" ? "Income" : "Expense"}</span>
+              <span>{option.short_label}</span>
+            </th>
+          {/each}
           <th class="num">Max of Asset</th>
           <th class="num">Rolling Avg. Expense (12M)</th>
           <th class="num">Asset MoM Change (%)</th>
@@ -169,16 +246,16 @@
       <tbody>
         {#if grouped.length === 0}
           <tr>
-            <td colspan="9" class="meta">No report data available.</td>
+            <td colspan={9 + selectedBreakdowns.length} class="meta">No report data available.</td>
           </tr>
         {/if}
 
         {#each grouped as yearGroup}
           <tr class="group-row report-year-row">
-            <td>
+            <td class="sticky-col sticky-col-1">
               {#if viewMode === "year_month"}
                 <button class="button" on:click={() => toggleYear(yearGroup.year)}>
-                  {expandedYears.has(yearGroup.year) ? "▾" : "▸"} {yearGroup.year}
+                  {expandedYears.has(yearGroup.year) ? "[-]" : "[+]"} {yearGroup.year}
                 </button>
               {:else}
                 {yearGroup.year}
@@ -186,6 +263,9 @@
             </td>
             <td class="num">{formatMoney(yearGroup.summary?.sum_income || 0)}</td>
             <td class="num">{formatMoney(yearGroup.summary?.sum_expense || 0)}</td>
+            {#each selectedBreakdowns as option}
+              <td class="num">{formatMoney(yearGroup.summary?.breakdowns?.[option.key] || 0)}</td>
+            {/each}
             <td class="num">{formatMoney(yearGroup.summary?.max_asset || 0)}</td>
             <td class="num">--</td>
             <td class="num">--</td>
@@ -202,9 +282,14 @@
           {#if viewMode === "year_month" && expandedYears.has(yearGroup.year)}
             {#each yearGroup.months as month}
               <tr>
-                <td style="padding-left: 24px;">{monthName(month.month_number)}</td>
+                <td class="sticky-col sticky-col-1" style="padding-left: 24px;">
+                  {monthName(month.month_number)}
+                </td>
                 <td class="num">{formatMoney(month.sum_income)}</td>
                 <td class="num">{formatMoney(month.sum_expense)}</td>
+                {#each selectedBreakdowns as option}
+                  <td class="num">{formatMoney(month.breakdowns?.[option.key] || 0)}</td>
+                {/each}
                 <td class="num">{formatMoney(month.max_asset)}</td>
                 <td class="num">{formatMoney(month.rolling_avg_expense)}</td>
                 <td class={`num ${changeClass(month.asset_mom_change)}`}>
@@ -223,3 +308,86 @@
     </table>
   </div>
 {/if}
+
+<style>
+  .report-breakdown-toolbar {
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .report-breakdown-dropdown {
+    position: relative;
+  }
+
+  .report-breakdown-dropdown summary {
+    list-style: none;
+    cursor: pointer;
+    min-width: 260px;
+    max-width: 420px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .report-breakdown-dropdown summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .report-breakdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    width: min(460px, 90vw);
+    max-height: 320px;
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  }
+
+  .report-breakdown-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .report-breakdown-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .report-breakdown-option {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+
+  .report-breakdown-head {
+    min-width: 112px;
+  }
+
+  .report-breakdown-type {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+
+  .report-table {
+    width: max-content;
+    min-width: 100%;
+  }
+</style>
