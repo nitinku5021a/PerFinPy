@@ -90,6 +90,11 @@ def list_transactions(page, period, account_id):
             'Expense': []
         }
 
+        def _display_value(account_type, value):
+            if account_type in ('Liability', 'Income'):
+                return -value
+            return value
+
         accounts = Account.query.filter(Account.account_type.in_(type_groups.keys())).all()
         leaf_accounts = [a for a in accounts if a.is_leaf()]
         account_ids = [a.id for a in leaf_accounts]
@@ -106,9 +111,7 @@ def list_transactions(page, period, account_id):
         sums = {row[0]: row[1] for row in q.all()}
 
         for acc in leaf_accounts:
-            val = sums.get(acc.id, 0.0)
-            if acc.account_type == 'Income':
-                val = abs(val)
+            val = _display_value(acc.account_type, sums.get(acc.id, 0.0))
             if abs(val) > 0.005:
                 type_groups[acc.account_type].append({
                     'account_id': acc.id,
