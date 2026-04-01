@@ -10,6 +10,7 @@
   let breakdownOptions = [];
   let selectedBreakdownKeys = [];
   let breakdownPickerOpen = false;
+  let breakdownPickerEl;
   let viewMode = "year_month";
   let expandedYears = new Set();
 
@@ -57,11 +58,8 @@
     expandedYears = next;
   }
 
-  function defaultBreakdownKeys(options) {
-    const active = (options || []).filter((item) => Math.abs(Number(item.total) || 0) > 0.005);
-    const incomes = active.filter((item) => item.type === "income").slice(0, 2);
-    const expenses = active.filter((item) => item.type === "expense").slice(0, 2);
-    return [...incomes, ...expenses].map((item) => item.key);
+  function defaultBreakdownKeys() {
+    return [];
   }
 
   function breakdownPickerLabel(options, keys) {
@@ -71,6 +69,14 @@
     return `${selected.length} selected`;
   }
 
+  function handleDocumentClick(event) {
+    if (!breakdownPickerOpen || !breakdownPickerEl) return;
+    const target = event.target;
+    if (target instanceof Node && !breakdownPickerEl.contains(target)) {
+      breakdownPickerOpen = false;
+    }
+  }
+
   onMount(async () => {
     loading = true;
     try {
@@ -78,7 +84,7 @@
       monthRows = payload?.months || [];
       yearRows = payload?.years || [];
       breakdownOptions = payload?.breakdown_options || [];
-      selectedBreakdownKeys = defaultBreakdownKeys(payload?.breakdown_options || []);
+      selectedBreakdownKeys = defaultBreakdownKeys();
       expandedYears = new Set((payload?.years || []).map((row) => row.year));
     } catch (err) {
       error = err?.message || "Failed to load report data.";
@@ -152,6 +158,8 @@
   );
 </script>
 
+<svelte:document on:click={handleDocumentClick} />
+
 <h1 class="page-title">Report</h1>
 <p class="page-subtitle">Month-wise and year-wise summary for Income, Expense and Asset.</p>
 
@@ -173,6 +181,7 @@
     <details
       id="breakdown-picker"
       class="report-breakdown-dropdown"
+      bind:this={breakdownPickerEl}
       bind:open={breakdownPickerOpen}
     >
       <summary>{breakdownPickerLabel(breakdownOptions, selectedBreakdownKeys)}</summary>
@@ -181,7 +190,7 @@
           <button
             class="button"
             type="button"
-            on:click={() => (selectedBreakdownKeys = defaultBreakdownKeys(breakdownOptions))}
+            on:click={() => (selectedBreakdownKeys = defaultBreakdownKeys())}
           >
             Default
           </button>
@@ -222,7 +231,7 @@
 {#if loading}
   <p class="meta">Loading report...</p>
 {:else}
-  <div class="table-wrap">
+  <div class="matrix-wrap report-table-wrap">
     <table class="table matrix-table report-table">
       <thead>
         <tr>
@@ -389,5 +398,9 @@
   .report-table {
     width: max-content;
     min-width: 100%;
+  }
+
+  .report-table-wrap {
+    max-height: calc(100vh - 220px);
   }
 </style>
