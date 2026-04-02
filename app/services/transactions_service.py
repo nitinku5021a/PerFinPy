@@ -50,7 +50,10 @@ def list_transactions(page, period, account_id):
         if end_date:
             q = q.filter(TransactionLine.date <= end_date)
 
-    q = q.order_by(JournalEntry.entry_date.desc())
+    q = q.order_by(
+        JournalEntry.entry_date.desc(),
+        JournalEntry.id.desc()
+    )
     if needs_line_join:
         q = q.distinct()
 
