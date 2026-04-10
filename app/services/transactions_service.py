@@ -15,6 +15,9 @@ from app.models import (
     ReminderOccurrence,
     GoalSetting,
     Goal,
+    CreditCard,
+    TradeSetup,
+    TradeJournalEntry,
     FinancialFreedomClockSnapshot,
     DashboardPanelCache
 )
@@ -578,6 +581,37 @@ def export_transactions(period):
     monthly_budget_ws = wb.create_sheet('Monthly Budget')
     monthly_budget_ws.append(['Month', 'Budget Amount', 'Guchi Opening Balance', 'Gunu Opening Balance'])
 
+    credit_cards_ws = wb.create_sheet('Credit Cards')
+    credit_cards_ws.append([
+        'Card ID',
+        'Card Name',
+        'Holder Name',
+        'Card Details',
+        'Features and Benefits',
+        'Annual Fee',
+        'Statement Date',
+        'Payment Date'
+    ])
+
+    trade_setups_ws = wb.create_sheet('Trade Setups')
+    trade_setups_ws.append([
+        'Setup ID',
+        'Setup Name',
+        'Start Date',
+        'Is Active'
+    ])
+
+    trade_entries_ws = wb.create_sheet('Trade Journal Entries')
+    trade_entries_ws.append([
+        'Entry ID',
+        'Setup ID',
+        'Setup Name',
+        'Trade Date',
+        'Capital Deployed',
+        'PnL Amount',
+        'Comment'
+    ])
+
     budget_assignments_ws = wb.create_sheet('Budget Assignments')
     budget_assignments_ws.append(['Month', 'JE ID', 'Entry Date', 'Description', 'Owner'])
 
@@ -660,6 +694,52 @@ def export_transactions(period):
             float(mb.budget_amount or 0.0),
             float(mb.guchi_opening_balance or 0.0),
             float(mb.gunu_opening_balance or 0.0)
+        ])
+
+    credit_cards = CreditCard.query.order_by(
+        CreditCard.holder_name.asc(),
+        CreditCard.card_name.asc(),
+        CreditCard.id.asc()
+    ).all()
+    for card in credit_cards:
+        credit_cards_ws.append([
+            card.id,
+            card.card_name or '',
+            card.holder_name or '',
+            card.card_details or '',
+            card.features_benefits or '',
+            float(card.annual_fee) if card.annual_fee is not None else '',
+            int(card.statement_day) if card.statement_day is not None else '',
+            int(card.payment_day) if card.payment_day is not None else ''
+        ])
+
+    trade_setups = TradeSetup.query.order_by(
+        TradeSetup.start_date.asc(),
+        TradeSetup.name.asc(),
+        TradeSetup.id.asc()
+    ).all()
+    for setup in trade_setups:
+        trade_setups_ws.append([
+            setup.id,
+            setup.name or '',
+            setup.start_date.strftime('%Y-%m-%d') if setup.start_date else '',
+            bool(setup.is_active)
+        ])
+
+    trade_entries = TradeJournalEntry.query.order_by(
+        TradeJournalEntry.trade_date.asc(),
+        TradeJournalEntry.setup_id.asc(),
+        TradeJournalEntry.id.asc()
+    ).all()
+    for entry in trade_entries:
+        trade_entries_ws.append([
+            entry.id,
+            entry.setup_id,
+            entry.setup.name if entry.setup else '',
+            entry.trade_date.strftime('%Y-%m-%d') if entry.trade_date else '',
+            float(entry.capital_deployed or 0.0),
+            float(entry.pnl_amount or 0.0),
+            entry.comment or ''
         ])
 
     assignments = (

@@ -15,6 +15,9 @@ from app.models import (
     ReminderOccurrence,
     GoalSetting,
     Goal,
+    CreditCard,
+    TradeSetup,
+    TradeJournalEntry,
     FinancialFreedomClockSnapshot,
     DashboardPanelCache
 )
@@ -202,6 +205,39 @@ def _parse_bool_cell(value, default=False):
     if text in {'false', 'no', 'n', '0', 'not done'}:
         return False
     return default
+
+
+def _parse_day_of_month_cell(value, field_name):
+    if value is None or value == '':
+        return None
+    try:
+        day = int(value)
+    except Exception:
+        raise ValueError(f"{field_name} must be a whole number")
+    if day < 1 or day > 31:
+        raise ValueError(f"{field_name} must be between 1 and 31")
+    return day
+
+
+def _parse_money_cell(value, field_name):
+    if value is None or value == '':
+        return None
+    try:
+        amount = float(value)
+    except Exception:
+        raise ValueError(f"{field_name} must be a number")
+    if amount < 0:
+        raise ValueError(f"{field_name} cannot be negative")
+    return amount
+
+
+def _parse_float_cell(value, field_name):
+    if value is None or value == '':
+        return None
+    try:
+        return float(value)
+    except Exception:
+        raise ValueError(f"{field_name} must be a number")
 
 
 def parse_transaction_row(row, row_num):
@@ -439,6 +475,221 @@ def import_transactions_from_excel(file_stream):
                         db.session.add(mb)
                 except Exception as e:
                     results['warnings'].append(f"Monthly Budget row {row_idx}: {str(e)}")
+
+        # Import Credit Cards, if present
+        if 'Credit Cards' in workbook.sheetnames:
+            cc_ws = workbook['Credit Cards']
+            header_row = next(cc_ws.iter_rows(min_row=1, max_row=1, values_only=True), None) or []
+            header_map = {
+                str(cell).strip().lower(): idx
+                for idx, cell in enumerate(header_row)
+                if cell is not None and str(cell).strip()
+            }
+
+            def _credit_card_value(row, *keys):
+                for key in keys:
+                    idx = header_map.get(key)
+                    if idx is not None and idx < len(row):
+                        return row[idx]
+                return None
+
+            for row_idx, row in enumerate(cc_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(cell not in (None, '') for cell in row):
+                    continue
+                try:
+                    source_id = _credit_card_value(row, 'card id')
+                    card_name = str(_credit_card_value(row, 'card name') or '').strip()
+                    holder_name = str(_credit_card_value(row, 'holder name') or '').strip()
+                    card_details = str(_credit_card_value(row, 'card details') or '').strip()
+                    features_benefits = str(
+                        _credit_card_value(row, 'features and benefits', 'features & benefits') or ''
+                    ).strip()
+                    annual_fee = _parse_money_cell(
+                        _credit_card_value(row, 'annual fee'),
+                        'Annual Fee'
+                    )
+                    statement_day = _parse_day_of_month_cell(
+                        _credit_card_value(row, 'statement date', 'statement day'),
+                        'Statement Date'
+                    )
+                    payment_day = _parse_day_of_month_cell(
+                        _credit_card_value(row, 'payment date', 'payment day'),
+                        'Payment Date'
+                    )
+
+                    if not card_name:
+                        raise ValueError('Card Name is required')
+                    if not holder_name:
+                        raise ValueError('Holder Name is required')
+
+                    card = None
+                    if source_id not in (None, ''):
+                        try:
+                            card = CreditCard.query.get(int(source_id))
+                        except Exception:
+                            card = None
+
+                    if card is None:
+                        card = (
+                            CreditCard.query
+                            .filter(db.func.lower(CreditCard.card_name) == card_name.lower())
+                            .filter(db.func.lower(CreditCard.holder_name) == holder_name.lower())
+                            .first()
+                        )
+
+                    if card:
+                        card.card_name = card_name
+                        card.holder_name = holder_name
+                        card.card_details = card_details or None
+                        card.features_benefits = features_benefits or None
+                        card.annual_fee = annual_fee
+                        card.statement_day = statement_day
+                        card.payment_day = payment_day
+                    else:
+                        db.session.add(
+                            CreditCard(
+                                card_name=card_name,
+                                holder_name=holder_name,
+                                card_details=card_details or None,
+                                features_benefits=features_benefits or None,
+                                annual_fee=annual_fee,
+                                statement_day=statement_day,
+                                payment_day=payment_day
+                            )
+                        )
+                except Exception as e:
+                    results['warnings'].append(f"Credit Cards row {row_idx}: {str(e)}")
+
+        # Import Trade Setups, if present
+        trade_setup_id_map = {}
+        if 'Trade Setups' in workbook.sheetnames:
+            ts_ws = workbook['Trade Setups']
+            for row_idx, row in enumerate(ts_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(cell not in (None, '') for cell in row):
+                    continue
+                try:
+                    source_setup_id = None
+                    if len(row) > 0 and row[0] not in (None, ''):
+                        source_setup_id = int(row[0])
+
+                    name = str(row[1] or '').strip() if len(row) > 1 else ''
+                    if not name:
+                        raise ValueError('Setup Name is required')
+
+                    start_date = _parse_date_cell(row[2] if len(row) > 2 else None)
+                    if not start_date:
+                        raise ValueError('Start Date is required')
+
+                    is_active = _parse_bool_cell(row[3] if len(row) > 3 else None, default=True)
+
+                    setup = None
+                    if source_setup_id is not None:
+                        setup = db.session.get(TradeSetup, source_setup_id)
+
+                    if setup is None:
+                        setup = (
+                            TradeSetup.query
+                            .filter(db.func.lower(TradeSetup.name) == name.lower())
+                            .first()
+                        )
+
+                    if setup:
+                        setup.name = name
+                        setup.start_date = start_date
+                        setup.is_active = is_active
+                    else:
+                        setup = TradeSetup(
+                            name=name,
+                            start_date=start_date,
+                            is_active=is_active
+                        )
+                        db.session.add(setup)
+                        db.session.flush()
+
+                    if source_setup_id is not None:
+                        trade_setup_id_map[source_setup_id] = setup.id
+                except Exception as e:
+                    results['warnings'].append(f"Trade Setups row {row_idx}: {str(e)}")
+
+        # Import Trade Journal Entries, if present
+        if 'Trade Journal Entries' in workbook.sheetnames:
+            te_ws = workbook['Trade Journal Entries']
+            for row_idx, row in enumerate(te_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(cell not in (None, '') for cell in row):
+                    continue
+                try:
+                    source_entry_id = None
+                    if len(row) > 0 and row[0] not in (None, ''):
+                        source_entry_id = int(row[0])
+
+                    source_setup_id = None
+                    if len(row) > 1 and row[1] not in (None, ''):
+                        source_setup_id = int(row[1])
+
+                    setup_name = str(row[2] or '').strip() if len(row) > 2 else ''
+                    trade_date = _parse_date_cell(row[3] if len(row) > 3 else None)
+                    capital_deployed = _parse_float_cell(row[4] if len(row) > 4 else None, 'Capital Deployed')
+                    pnl_amount = _parse_float_cell(row[5] if len(row) > 5 else None, 'PnL Amount')
+                    comment = str(row[6] or '').strip() if len(row) > 6 else ''
+
+                    if not trade_date:
+                        raise ValueError('Trade Date is required')
+                    if capital_deployed is None:
+                        raise ValueError('Capital Deployed is required')
+                    if capital_deployed < 0:
+                        raise ValueError('Capital Deployed cannot be negative')
+                    if pnl_amount is None:
+                        raise ValueError('PnL Amount is required')
+
+                    mapped_setup_id = None
+                    if source_setup_id is not None:
+                        mapped_setup_id = trade_setup_id_map.get(source_setup_id)
+                        if mapped_setup_id is None:
+                            existing_setup = db.session.get(TradeSetup, source_setup_id)
+                            mapped_setup_id = existing_setup.id if existing_setup else None
+
+                    setup = db.session.get(TradeSetup, mapped_setup_id) if mapped_setup_id is not None else None
+                    if setup is None and setup_name:
+                        setup = (
+                            TradeSetup.query
+                            .filter(db.func.lower(TradeSetup.name) == setup_name.lower())
+                            .first()
+                        )
+
+                    if setup is None:
+                        raise ValueError('Trade setup not found for entry')
+
+                    if trade_date < setup.start_date:
+                        raise ValueError('Trade Date cannot be earlier than setup Start Date')
+
+                    entry = None
+                    if source_entry_id is not None:
+                        entry = db.session.get(TradeJournalEntry, source_entry_id)
+
+                    if entry is None:
+                        entry = TradeJournalEntry.query.filter_by(
+                            setup_id=setup.id,
+                            trade_date=trade_date
+                        ).first()
+
+                    if entry:
+                        entry.setup_id = setup.id
+                        entry.trade_date = trade_date
+                        entry.capital_deployed = capital_deployed
+                        entry.pnl_amount = pnl_amount
+                        entry.comment = comment or None
+                    else:
+                        db.session.add(
+                            TradeJournalEntry(
+                                setup_id=setup.id,
+                                trade_date=trade_date,
+                                capital_deployed=capital_deployed,
+                                pnl_amount=pnl_amount,
+                                comment=comment or None
+                            )
+                        )
+                except Exception as e:
+                    results['warnings'].append(f"Trade Journal Entries row {row_idx}: {str(e)}")
 
         # Import Budget Assignments, if present
         if 'Budget Assignments' in workbook.sheetnames:

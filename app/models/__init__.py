@@ -315,6 +315,68 @@ class Goal(db.Model):
         return f'<Goal {self.id} {self.description}>'
 
 
+class CreditCard(db.Model):
+    """Credit card reference data."""
+    __tablename__ = 'credit_cards'
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_name = db.Column(db.String(150), nullable=False)
+    holder_name = db.Column(db.String(150), nullable=False)
+    card_details = db.Column(db.Text, nullable=True)
+    features_benefits = db.Column(db.Text, nullable=True)
+    annual_fee = db.Column(db.Float, nullable=True)
+    statement_day = db.Column(db.Integer, nullable=True)
+    payment_day = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<CreditCard {self.id} {self.card_name}>'
+
+
+class TradeSetup(db.Model):
+    """Trading strategy/setup master data."""
+    __tablename__ = 'trade_setups'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    entries = db.relationship(
+        'TradeJournalEntry',
+        backref='setup',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
+
+    def __repr__(self):
+        return f'<TradeSetup {self.id} {self.name}>'
+
+
+class TradeJournalEntry(db.Model):
+    """Daily PnL log for an individual trading setup."""
+    __tablename__ = 'trade_journal_entries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    setup_id = db.Column(db.Integer, db.ForeignKey('trade_setups.id'), nullable=False, index=True)
+    trade_date = db.Column(db.Date, nullable=False, index=True)
+    capital_deployed = db.Column(db.Float, nullable=False, default=0.0)
+    pnl_amount = db.Column(db.Float, nullable=False, default=0.0)
+    comment = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('setup_id', 'trade_date', name='uq_trade_journal_setup_date'),
+    )
+
+    def __repr__(self):
+        return f'<TradeJournalEntry setup={self.setup_id} date={self.trade_date} pnl={self.pnl_amount}>'
+
+
 class FinancialFreedomClockSnapshot(db.Model):
     """Cached Financial Freedom Clock metrics."""
     __tablename__ = 'financial_freedom_clock_snapshot'

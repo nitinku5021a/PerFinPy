@@ -13,7 +13,10 @@ from app.models import (
     MonthlyBudget,
     BudgetEntryAssignment,
     GoalSetting,
-    Goal
+    Goal,
+    CreditCard,
+    TradeSetup,
+    TradeJournalEntry
 )
 from app.services.transactions_service import export_transactions
 from app.utils.excel_import import import_transactions_from_excel
@@ -51,6 +54,25 @@ def test_budget_export_import_roundtrip():
         db.session.add(BudgetEntryAssignment(month=date(2026, 1, 1), journal_entry_id=je.id, owner="Gunu"))
         db.session.add(GoalSetting(interest_rate=8.25))
         db.session.add(Goal(description="House", target_corpus=2500000.0, target_year=2032, current_corpus=500000.0))
+        db.session.add(CreditCard(
+            card_name="ICICI Amazon Pay",
+            holder_name="Gunu",
+            card_details="Mastercard ending 8899",
+            features_benefits="Cashback on Amazon and utilities",
+            annual_fee=500.0,
+            statement_day=3,
+            payment_day=18
+        ))
+        setup = TradeSetup(name="Opening Range Breakout", start_date=date(2026, 1, 1), is_active=True)
+        db.session.add(setup)
+        db.session.flush()
+        db.session.add(TradeJournalEntry(
+            setup_id=setup.id,
+            trade_date=date(2026, 1, 5),
+            capital_deployed=150000.0,
+            pnl_amount=2400.0,
+            comment="Strong gap-up continuation"
+        ))
         db.session.commit()
 
         stream = export_transactions("all")
@@ -86,3 +108,23 @@ def test_budget_export_import_roundtrip():
         assert goal.target_corpus == 2500000.0
         assert goal.target_year == 2032
         assert goal.current_corpus == 500000.0
+
+        card = CreditCard.query.filter_by(card_name="ICICI Amazon Pay").first()
+        assert card is not None
+        assert card.holder_name == "Gunu"
+        assert card.card_details == "Mastercard ending 8899"
+        assert card.features_benefits == "Cashback on Amazon and utilities"
+        assert card.annual_fee == 500.0
+        assert card.statement_day == 3
+        assert card.payment_day == 18
+
+        trade_setup = TradeSetup.query.filter_by(name="Opening Range Breakout").first()
+        assert trade_setup is not None
+        assert trade_setup.start_date == date(2026, 1, 1)
+        assert trade_setup.is_active is True
+
+        trade_entry = TradeJournalEntry.query.filter_by(setup_id=trade_setup.id, trade_date=date(2026, 1, 5)).first()
+        assert trade_entry is not None
+        assert trade_entry.capital_deployed == 150000.0
+        assert trade_entry.pnl_amount == 2400.0
+        assert trade_entry.comment == "Strong gap-up continuation"

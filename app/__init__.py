@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from config import Config
+from sqlalchemy import inspect, text
 
 db = SQLAlchemy()
 
@@ -26,12 +27,16 @@ def create_app(config_class=Config):
             ReminderOccurrence,
             GoalSetting,
             Goal,
+            CreditCard,
+            TradeSetup,
+            TradeJournalEntry,
             FinancialFreedomClockSnapshot,
             DashboardPanelCache
         )
         
         # Create tables
         db.create_all()
+        _ensure_credit_cards_schema()
 
         # Register snapshot listeners
         from app.services import snapshots_service
@@ -49,12 +54,25 @@ def create_app(config_class=Config):
             db.session.rollback()
     
     # Register blueprints
-    from app.routes import main, transactions, reports, budget, reminders, goals
+    from app.routes import main, transactions, reports, budget, reminders, goals, credit_cards, trade_journal
     app.register_blueprint(main.bp)
     app.register_blueprint(transactions.bp)
     app.register_blueprint(reports.bp)
     app.register_blueprint(budget.bp)
     app.register_blueprint(reminders.bp)
     app.register_blueprint(goals.bp)
+    app.register_blueprint(credit_cards.bp)
+    app.register_blueprint(trade_journal.bp)
     
     return app
+
+
+def _ensure_credit_cards_schema():
+    inspector = inspect(db.engine)
+    if 'credit_cards' not in inspector.get_table_names():
+        return
+
+    existing_columns = {col['name'] for col in inspector.get_columns('credit_cards')}
+    if 'annual_fee' not in existing_columns:
+        db.session.execute(text('ALTER TABLE credit_cards ADD COLUMN annual_fee FLOAT'))
+        db.session.commit()

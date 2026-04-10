@@ -6,9 +6,11 @@
     { href: "/networth", label: "Balance Sheet" },
     { href: "/income-statement", label: "Income Statement" },
     { href: "/transactions", label: "Monthly Transactions" },
+    { href: "/trade-journal", label: "Trade Journal" },
     { href: "/reminders", label: "Reminders" },
     { href: "/report", label: "Reports" },
-    { href: "/monthly-budget", label: "Monthly Budget" }
+    { href: "/monthly-budget", label: "Monthly Budget" },
+    { href: "/credit-cards", label: "Credit Cards" }
   ];
 
   const otherLinks = [

@@ -3,7 +3,18 @@ from datetime import date
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app, db
-from app.models import Account, JournalEntry, TransactionLine, MonthlyBudget, BudgetEntryAssignment, GoalSetting, Goal
+from app.models import (
+    Account,
+    JournalEntry,
+    TransactionLine,
+    MonthlyBudget,
+    BudgetEntryAssignment,
+    GoalSetting,
+    Goal,
+    CreditCard,
+    TradeSetup,
+    TradeJournalEntry
+)
 from openpyxl import load_workbook
 
 def test_export_transactions():
@@ -42,6 +53,25 @@ def test_export_transactions():
         goal_settings = GoalSetting(interest_rate=7.5)
         db.session.add(goal_settings)
         db.session.add(Goal(description='Car fund', target_corpus=500000.0, target_year=2030, current_corpus=150000.0))
+        db.session.add(CreditCard(
+            card_name='HDFC Millennia',
+            holder_name='Guchi',
+            card_details='Visa ending 1234',
+            features_benefits='Cashback on online spends',
+            annual_fee=999.0,
+            statement_day=12,
+            payment_day=27
+        ))
+        setup = TradeSetup(name='ORB', start_date=date(2026, 1, 1), is_active=True)
+        db.session.add(setup)
+        db.session.flush()
+        db.session.add(TradeJournalEntry(
+            setup_id=setup.id,
+            trade_date=date(2026, 1, 10),
+            capital_deployed=75000.0,
+            pnl_amount=1800.0,
+            comment='Good breakout follow-through'
+        ))
         db.session.commit()
 
         client = app.test_client()
@@ -101,6 +131,52 @@ def test_export_transactions():
         assert len(goals_rows) >= 2
         goals_header = [c.value for c in goals_rows[0]]
         assert goals_header == ['Goal ID', 'Description', 'Target Corpus', 'Target Year', 'Current Corpus']
+
+        assert 'Credit Cards' in wb.sheetnames
+        cc_ws = wb['Credit Cards']
+        cc_rows = list(cc_ws.rows)
+        assert len(cc_rows) >= 2
+        cc_header = [c.value for c in cc_rows[0]]
+        assert cc_header == [
+            'Card ID',
+            'Card Name',
+            'Holder Name',
+            'Card Details',
+            'Features and Benefits',
+            'Annual Fee',
+            'Statement Date',
+            'Payment Date'
+        ]
+        cc_first_row = [c.value for c in cc_rows[1]]
+        assert cc_first_row[1] == 'HDFC Millennia'
+        assert cc_first_row[2] == 'Guchi'
+        assert cc_first_row[5] == 999
+        assert cc_first_row[6] == 12
+        assert cc_first_row[7] == 27
+
+        assert 'Trade Setups' in wb.sheetnames
+        ts_ws = wb['Trade Setups']
+        ts_rows = list(ts_ws.rows)
+        assert len(ts_rows) >= 2
+        ts_header = [c.value for c in ts_rows[0]]
+        assert ts_header == ['Setup ID', 'Setup Name', 'Start Date', 'Is Active']
+        ts_first_row = [c.value for c in ts_rows[1]]
+        assert ts_first_row[1] == 'ORB'
+        assert ts_first_row[2] == '2026-01-01'
+        assert ts_first_row[3] is True
+
+        assert 'Trade Journal Entries' in wb.sheetnames
+        te_ws = wb['Trade Journal Entries']
+        te_rows = list(te_ws.rows)
+        assert len(te_rows) >= 2
+        te_header = [c.value for c in te_rows[0]]
+        assert te_header == ['Entry ID', 'Setup ID', 'Setup Name', 'Trade Date', 'Capital Deployed', 'PnL Amount', 'Comment']
+        te_first_row = [c.value for c in te_rows[1]]
+        assert te_first_row[2] == 'ORB'
+        assert te_first_row[3] == '2026-01-10'
+        assert te_first_row[4] == 75000
+        assert te_first_row[5] == 1800
+        assert te_first_row[6] == 'Good breakout follow-through'
 
         # spot-check a data row
         first_row = [c.value for c in rows[1]]

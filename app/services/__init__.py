@@ -1,4 +1,14 @@
-from app.services import main_service, reports_service, transactions_service, snapshots_service, budget_service, reminders_service, goals_service
+from app.services import (
+    main_service,
+    reports_service,
+    transactions_service,
+    snapshots_service,
+    budget_service,
+    reminders_service,
+    goals_service,
+    credit_cards_service,
+    trade_journal_service
+)
 
 __all__ = [
     'main_service',
@@ -7,5 +17,7 @@ __all__ = [
     'snapshots_service',
     'budget_service',
     'reminders_service',
-    'goals_service'
+    'goals_service',
+    'credit_cards_service',
+    'trade_journal_service'
 ]
