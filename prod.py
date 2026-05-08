@@ -159,6 +159,8 @@ def main():
             f"{backend_host}:{backend_port}",
             "--workers",
             os.environ.get("GUNICORN_WORKERS", "3"),
+            "--timeout",
+            os.environ.get("GUNICORN_TIMEOUT", "300"),
         ]
 
     print("==> Starting backend in background and frontend in foreground", flush=True)
