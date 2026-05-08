@@ -1,4 +1,4 @@
 @echo off
 setlocal
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0prod.ps1"
+python "%~dp0prod.py" %*
 endlocal

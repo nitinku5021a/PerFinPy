@@ -63,7 +63,10 @@ PerFinPy/
 |-- wsgi.py
 |-- requirements.txt
 |-- dev.cmd / dev.ps1
-|-- prod.cmd / prod.ps1
+|-- prod.py / prod.cmd / prod.sh
+|-- export-excel.py / export-excel.sh
+|-- deploy/
+|-- scripts/
 `-- README.md
 ```
 
@@ -158,6 +161,11 @@ Optional:
 - `FRONTEND_HOST`
 - `FRONTEND_PORT`
 - `API_BASE_URL`
+- `PERFINPY_BACKUP_DIR`
+- `PERFINPY_BACKUP_KEEP_LATEST`
+- `PERFINPY_EXPORT_URL`
+- `PERFINPY_EXPORT_RETRIES`
+- `PERFINPY_EXPORT_RETRY_DELAY`
 
 ## Local Development
 
@@ -199,10 +207,19 @@ npm run dev
 
 ## Production
 
-Use:
+Use the OS-specific wrapper, or call `python prod.py` directly.
+
+Windows:
 
 ```bat
 prod.cmd
+```
+
+Linux/macOS:
+
+```bash
+chmod +x prod.sh export-excel.sh start-perfinpy-prod.sh scripts/install-linux-service.sh
+./prod.sh
 ```
 
 Behavior:
@@ -211,6 +228,56 @@ Behavior:
 - starts backend with `waitress` on Windows, `gunicorn` on non-Windows
 - starts SvelteKit Node server (`node build`)
 - auto-selects alternative backend/frontend ports if requested ports are in use
+
+### Ubuntu / Oracle Cloud systemd
+
+The repo includes a systemd installer for an Ubuntu VM:
+
+```bash
+cd /opt/perfinpy
+chmod +x scripts/install-linux-service.sh
+./scripts/install-linux-service.sh
+sudo nano /etc/perfinpy/perfinpy.env
+sudo systemctl start perfinpy
+sudo journalctl -u perfinpy -f
+```
+
+For a private Tailscale deployment:
+
+1. Install and authenticate Tailscale on the VM. Official docs: https://tailscale.com/docs/install/linux
+2. Keep Oracle Cloud public ingress closed for app ports `5173` and `8000`; Oracle security-list rules control traffic into the VNIC: https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/update-securitylist.htm
+3. Access the app from machines in your tailnet using the VM Tailscale DNS name or IP, for example `http://perfinpy-oracle:5173`.
+4. In `/etc/perfinpy/perfinpy.env`, set `SECRET_KEY`, confirm `DATABASE_URL`, and leave `API_BASE_URL=http://127.0.0.1:8000` unless the backend is moved.
+
+### Windows startup
+
+To keep using Windows startup for the local production app, point Task Scheduler or the Startup folder to:
+
+```bat
+start-perfinpy-prod.bat
+```
+
+The batch file is now path-relative, so it no longer assumes `D:\Production\PerFinPy`.
+
+### Windows startup backup from Oracle Cloud over Tailscale
+
+Set the remote export URL to the Oracle VM's Tailscale address and install the logon task:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-windows-startup-export-task.ps1 `
+  -BackupDir "$env:USERPROFILE\Documents\PerFinPyBackups" `
+  -KeepLatest 5 `
+  -ExportUrl "http://perfinpy-oracle:5173/api/transactions/export?period=all"
+```
+
+The task runs at Windows logon after a short delay. `export-excel.py` also retries remote downloads, which gives Tailscale time to connect during startup.
+
+Manual backup:
+
+```bat
+set PERFINPY_EXPORT_URL=http://perfinpy-oracle:5173/api/transactions/export?period=all
+startup-export-excel.bat
+```
 
 ## Snapshots
 

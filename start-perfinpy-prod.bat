@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set "ROOT=d:\Production\PerFinPy"
+set "ROOT=%~dp0"
 set "CMD=%ROOT%\prod.cmd"
 
 if not exist "%CMD%" (

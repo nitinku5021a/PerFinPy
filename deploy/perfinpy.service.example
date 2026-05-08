@@ -1,0 +1,16 @@
+[Unit]
+Description=PerFinPy
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=perfinpy
+WorkingDirectory=/opt/perfinpy
+EnvironmentFile=-/etc/perfinpy/perfinpy.env
+ExecStart=/usr/bin/python3 /opt/perfinpy/prod.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
