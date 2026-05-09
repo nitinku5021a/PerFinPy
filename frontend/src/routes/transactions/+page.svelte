@@ -630,7 +630,7 @@
       const params = new URLSearchParams();
       params.set("period", toPeriodParam(period, startDate, endDate));
       if (accountId !== "all") params.set("account_id", accountId);
-      data = await apiGet(`/transactions?${params.toString()}`);
+      data = await apiGet(`/transactions/?${params.toString()}`);
     } catch (err) {
       error = err.message || "Failed to load.";
     }
@@ -1733,7 +1733,7 @@
         params.set("period", toPeriodParam(period, startDate, endDate));
         if (accountId !== "all") params.set("account_id", accountId);
         params.set("page", String((data?.pagination?.page || 1) - 1));
-        apiGet(`/transactions?${params.toString()}`).then((res) => (data = res));
+        apiGet(`/transactions/?${params.toString()}`).then((res) => (data = res));
       }}>
         Prev Page
       </button>
@@ -1743,7 +1743,7 @@
         params.set("period", toPeriodParam(period, startDate, endDate));
         if (accountId !== "all") params.set("account_id", accountId);
         params.set("page", String((data?.pagination?.page || 1) + 1));
-        apiGet(`/transactions?${params.toString()}`).then((res) => (data = res));
+        apiGet(`/transactions/?${params.toString()}`).then((res) => (data = res));
       }}>
         Next Page
       </button>

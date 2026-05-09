@@ -80,7 +80,7 @@
       params.set("period", toPeriodParam(period, startDate, endDate));
       if (accountId) params.set("account_id", accountId);
       params.set("page", String(pageNum));
-      data = await apiGet(`/transactions?${params.toString()}`);
+      data = await apiGet(`/transactions/?${params.toString()}`);
     } catch (err) {
       error = err.message || "Failed to load.";
     }
