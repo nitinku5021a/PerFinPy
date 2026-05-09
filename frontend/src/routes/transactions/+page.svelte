@@ -21,6 +21,8 @@
   let months = [];
   let activeMonth = "";
   let exportAll = false;
+  let entryTab = "smart";
+
   function toLocalDate(d) {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
@@ -796,6 +798,12 @@
   </div>
 </div>
 
+<div style="margin-bottom: 12px; display: inline-flex; background: var(--panel); border: 1px solid var(--border); padding: 3px; border-radius: 8px;">
+  <button style="border:0; background: {entryTab === 'smart' ? '#111827' : 'transparent'}; color: {entryTab === 'smart' ? '#fff' : 'var(--muted)'}; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;" on:click={() => entryTab = 'smart'}>Smart Entry</button>
+  <button style="border:0; background: {entryTab === 'manual' ? '#111827' : 'transparent'}; color: {entryTab === 'manual' ? '#fff' : 'var(--muted)'}; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;" on:click={() => entryTab = 'manual'}>Manual Entry</button>
+</div>
+
+{#if entryTab === "smart"}
 <div class="panel smart-entry-panel">
   <div class="smart-entry__header">
     <div>
@@ -809,15 +817,15 @@
     </label>
   </div>
 
-  <div class="smart-entry__modes">
+  <div style="margin-bottom: 16px; display: inline-flex; border: 1px solid var(--border); background: var(--panel); padding: 3px; border-radius: 8px;">
     {#each smartModes as mode}
       <button
-        class={`smart-entry__mode ${smartMode === mode.id ? "active" : ""}`}
+        style="border: 0; background: {smartMode === mode.id ? '#111827' : 'transparent'}; color: {smartMode === mode.id ? '#ffffff' : 'var(--muted)'}; padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s;"
         type="button"
         on:click={() => setSmartMode(mode.id)}
+        title={mode.hint}
       >
-        <strong>{mode.label}</strong>
-        <span>{mode.hint}</span>
+        {mode.label}
       </button>
     {/each}
   </div>
@@ -1494,6 +1502,7 @@
   </div>
 </div>
 
+{:else}
 <div class="panel entry-panel">
   <div class="toolbar entry-form">
     <label>
@@ -1659,6 +1668,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 <div class="toolbar">
   <button class="button" on:click={() => {
@@ -1712,11 +1722,10 @@
   <span class="meta">Total: {data?.pagination?.total ?? 0} entries</span>
 </div>
 
-<div class="tabs">
+<div style="display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px;">
   {#each months as m, i}
     <button
-      class={`tab ${activeMonth === m.key ? "active" : ""}`}
-      style={`--tab-color: ${monthTabColor(i)}`}
+      style="flex: 0 0 auto; border: 1px solid var(--border); background: {activeMonth === m.key ? '#111827' : 'var(--panel)'}; color: {activeMonth === m.key ? '#ffffff' : 'var(--muted)'}; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
       on:click={() => setActiveMonth(m.key)}
     >
       {m.label}
@@ -1854,9 +1863,7 @@
     font-size: 12px;
   }
 
-  .smart-entry__date input,
-  .smart-entry__field input,
-  .smart-entry__field select {
+  .smart-entry__date input {
     width: 100%;
     min-height: 38px;
     border: 1px solid #cbd5e1;
@@ -1866,13 +1873,37 @@
     padding: 8px 10px;
     font-size: 13px;
   }
-
-  .smart-entry__date input:focus,
-  .smart-entry__field input:focus,
-  .smart-entry__field select:focus {
+  .smart-entry__date input:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .smart-entry__field input,
+  .smart-entry__field select {
+    width: 100%;
+    min-height: 38px;
+    border: none;
+    border-bottom: 2px dashed #94a3b8;
+    border-radius: 0;
+    background: transparent;
+    color: #1e293b;
+    padding: 4px 8px;
+    font-size: 18px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+
+  .smart-entry__field input:focus,
+  .smart-entry__field select:focus {
+    outline: none;
+    border-bottom: 2px solid #2563eb;
+    background: rgba(37, 99, 235, 0.05);
+  }
+  
+  .smart-entry__field--note input {
+    font-size: 14px;
+    font-weight: 500;
   }
 
   .smart-entry__modes {
@@ -1937,10 +1968,10 @@
   }
 
   .smart-entry__sentence > span {
-    font-size: 16px;
-    font-weight: 600;
-    color: #0f172a;
-    padding-bottom: 8px;
+    font-size: 18px;
+    font-weight: 500;
+    color: #475569;
+    padding-bottom: 6px;
   }
 
   .smart-entry__field {
@@ -1955,11 +1986,18 @@
   }
 
   .smart-entry__field span {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #64748b;
+    color: #94a3b8;
+    position: absolute;
+    top: -16px;
+    left: 8px;
+  }
+  .smart-entry__field {
+    position: relative;
+    margin-top: 16px;
   }
 
   .smart-entry__field--note {
@@ -2055,5 +2093,25 @@
     .smart-entry__field {
       min-width: 100%;
     }
+  }
+
+  :global(.date-shade-a) {
+    background-color: #ffffff !important;
+  }
+  :global(.date-shade-b) {
+    background-color: #f1f5f9 !important;
+  }
+  :global(.table tbody tr:hover) {
+    background-color: rgba(226, 232, 240, 0.6) !important;
+  }
+  :global(.table td) {
+    padding: 10px 14px !important;
+    vertical-align: middle !important;
+  }
+  :global(.table th) {
+    padding: 12px 14px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    border-bottom: 2px solid #cbd5e1 !important;
   }
 </style>
