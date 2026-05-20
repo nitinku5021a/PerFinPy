@@ -1,7 +1,7 @@
 from datetime import datetime
 from app import db
 import json
-from sqlalchemy import case, select
+from sqlalchemy import case, select, func
 from app.models import (
     Account,
     JournalEntry,
@@ -31,6 +31,7 @@ def list_transactions(page, period, account_id):
     except Exception:
         start_date, end_date = (None, None)
 
+    per_page = 20
     q = JournalEntry.query
     needs_line_join = False
 
@@ -60,7 +61,7 @@ def list_transactions(page, period, account_id):
     if needs_line_join:
         q = q.distinct()
 
-    entries = q.paginate(page=page, per_page=20)
+    entries = q.paginate(page=page, per_page=per_page)
 
     all_accounts = Account.query.order_by(Account.name).all()
     accounts_for_select = all_accounts
@@ -87,6 +88,51 @@ def list_transactions(page, period, account_id):
             'credit_account': credit_name,
             'amount': amount
         }
+
+    def _account_running_balances_page(descendant_ids):
+        """
+        {journal_entry_id: running_balance} for *this page* where running_balance is
+        cumulative net (debit-credit) for the selected account(s) in ascending date
+        order across the full filtered set.
+        """
+        delta_expr = func.coalesce(
+            func.sum(
+                case(
+                    (func.upper(TransactionLine.line_type) == 'DEBIT', TransactionLine.amount),
+                    else_=-TransactionLine.amount,
+                )
+            ),
+            0.0,
+        ).label('delta')
+
+        base = (
+            db.session.query(
+                JournalEntry.id.label('je_id'),
+                JournalEntry.entry_date.label('entry_date'),
+                delta_expr,
+            )
+            .join(TransactionLine, TransactionLine.journal_entry_id == JournalEntry.id)
+            .filter(TransactionLine.account_id.in_(descendant_ids))
+        )
+        if start_date:
+            base = base.filter(TransactionLine.date >= start_date)
+        if end_date:
+            base = base.filter(TransactionLine.date <= end_date)
+
+        grouped = base.group_by(JournalEntry.id, JournalEntry.entry_date).subquery()
+
+        running_sum = func.sum(grouped.c.delta).over(
+            order_by=(grouped.c.entry_date.asc(), grouped.c.je_id.asc())
+        ).label('running_balance')
+
+        rows = (
+            db.session.query(grouped.c.je_id, running_sum)
+            .order_by(grouped.c.entry_date.desc(), grouped.c.je_id.desc())
+            .limit(per_page)
+            .offset(max(0, (int(page) - 1)) * per_page)
+            .all()
+        )
+        return {int(r[0]): float(r[1] or 0.0) for r in rows}
 
     def _period_sums():
         type_groups = {
@@ -142,6 +188,8 @@ def list_transactions(page, period, account_id):
         .scalar()
     )
 
+    entries_payload = [_summarize_entry(e) for e in entries.items]
+
     account_net_total_all = None
     account_net_total_page = None
     if account_id:
@@ -179,9 +227,15 @@ def list_transactions(page, period, account_id):
         else:
             account_net_total_page = 0.0
 
+        balance_map = _account_running_balances_page(descendant_ids)
+        for row in entries_payload:
+            je_id = int(row.get('id'))
+            if je_id in balance_map:
+                row['balance_remaining'] = balance_map[je_id]
+
     return {
         'page': 'transactions_list',
-        'entries': [_summarize_entry(e) for e in entries.items],
+        'entries': entries_payload,
         'period_sums': _period_sums(),
         'pagination': {
             'page': entries.page,

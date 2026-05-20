@@ -28,12 +28,15 @@
     };
   }
 
-  const columns = [
+  $: columns = [
     { header: "Date", render: (row) => row.entry_date },
     { header: "Debit Account", render: (row) => row.debit_account },
     { header: "Amount", render: (row) => formatInr(row.amount), align: "right" },
     { header: "Description", render: (row) => row.description },
-    { header: "Credit Account", render: (row) => row.credit_account }
+    { header: "Credit Account", render: (row) => row.credit_account },
+    ...(data?.account_id
+      ? [{ header: "Balance Remaining", render: (row) => formatInr(row.balance_remaining ?? 0), align: "right" }]
+      : [])
   ];
 
   function setPeriodForMode(mode, endParam, monthParam) {
