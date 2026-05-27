@@ -31,12 +31,17 @@ def create_app(config_class=Config):
             TradeSetup,
             TradeJournalEntry,
             FinancialFreedomClockSnapshot,
-            DashboardPanelCache
+            DashboardPanelCache,
+            InvestmentAccount,
+            InvestmentRow
+            ,
+            InvestmentInstrumentMapping
         )
         
         # Create tables
         db.create_all()
         _ensure_credit_cards_schema()
+        _ensure_investments_schema()
 
         # Register snapshot listeners
         from app.services import snapshots_service
@@ -54,7 +59,7 @@ def create_app(config_class=Config):
             db.session.rollback()
     
     # Register blueprints
-    from app.routes import main, transactions, reports, budget, reminders, goals, credit_cards, trade_journal
+    from app.routes import main, transactions, reports, budget, reminders, goals, credit_cards, trade_journal, investments
     app.register_blueprint(main.bp)
     app.register_blueprint(transactions.bp)
     app.register_blueprint(reports.bp)
@@ -63,6 +68,7 @@ def create_app(config_class=Config):
     app.register_blueprint(goals.bp)
     app.register_blueprint(credit_cards.bp)
     app.register_blueprint(trade_journal.bp)
+    app.register_blueprint(investments.bp)
     
     return app
 
@@ -75,4 +81,15 @@ def _ensure_credit_cards_schema():
     existing_columns = {col['name'] for col in inspector.get_columns('credit_cards')}
     if 'annual_fee' not in existing_columns:
         db.session.execute(text('ALTER TABLE credit_cards ADD COLUMN annual_fee FLOAT'))
+        db.session.commit()
+
+
+def _ensure_investments_schema():
+    inspector = inspect(db.engine)
+    if 'investment_rows' not in inspector.get_table_names():
+        return
+
+    existing_columns = {col['name'] for col in inspector.get_columns('investment_rows')}
+    if 'mapping_account_id' not in existing_columns:
+        db.session.execute(text('ALTER TABLE investment_rows ADD COLUMN mapping_account_id INTEGER'))
         db.session.commit()

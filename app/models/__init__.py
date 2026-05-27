@@ -1,6 +1,14 @@
 from datetime import datetime, date
 from app import db
 from enum import Enum
+import json
+
+
+class InvestmentCategory(Enum):
+    EQUITY = "Equity"
+    MUTUAL_FUNDS = "Mutual Funds"
+    FIXED_INCOME = "Fixed Income"
+    COMMODITY = "Commodity"
 
 class AccountType(Enum):
     """Chart of Accounts types"""
@@ -412,3 +420,86 @@ class DashboardPanelCache(db.Model):
 
     def __repr__(self):
         return f'<DashboardPanelCache key={self.key}>'
+
+
+class InvestmentAccount(db.Model):
+    """Uploaded/manual investment tables grouped by category and account name."""
+    __tablename__ = "investment_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(40), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    headers_json = db.Column(db.Text, nullable=False, default="[]")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    rows = db.relationship(
+        "InvestmentRow",
+        backref="account",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("category", "name", name="uq_investment_category_name"),
+    )
+
+    @property
+    def headers(self):
+        try:
+            return json.loads(self.headers_json or "[]") or []
+        except Exception:
+            return []
+
+    @headers.setter
+    def headers(self, value):
+        self.headers_json = json.dumps(value or [])
+
+    def __repr__(self):
+        return f"<InvestmentAccount {self.category}:{self.name}>"
+
+
+class InvestmentRow(db.Model):
+    """Row for an InvestmentAccount table (stored as JSON dict)."""
+    __tablename__ = "investment_rows"
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("investment_accounts.id"), nullable=False, index=True)
+    sort_index = db.Column(db.Integer, nullable=False, default=0, index=True)
+    data_json = db.Column(db.Text, nullable=False, default="{}")
+    mapping_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def data(self):
+        try:
+            return json.loads(self.data_json or "{}") or {}
+        except Exception:
+            return {}
+
+    @data.setter
+    def data(self, value):
+        self.data_json = json.dumps(value or {})
+
+    def __repr__(self):
+        return f"<InvestmentRow {self.id} account={self.account_id}>"
+
+
+class InvestmentInstrumentMapping(db.Model):
+    """Mapping from (category, instrument) -> Asset leaf account for Combined sync."""
+    __tablename__ = "investment_instrument_mappings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(40), nullable=False, index=True)
+    instrument = db.Column(db.String(200), nullable=False, index=True)
+    mapping_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("category", "instrument", name="uq_investment_mapping_category_instrument"),
+    )
+
+    def __repr__(self):
+        return f"<InvestmentInstrumentMapping {self.category}:{self.instrument}>"

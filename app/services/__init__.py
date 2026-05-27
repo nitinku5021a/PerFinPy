@@ -7,7 +7,8 @@ from app.services import (
     reminders_service,
     goals_service,
     credit_cards_service,
-    trade_journal_service
+    trade_journal_service,
+    investments_service
 )
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     'reminders_service',
     'goals_service',
     'credit_cards_service',
-    'trade_journal_service'
+    'trade_journal_service',
+    'investments_service'
 ]
