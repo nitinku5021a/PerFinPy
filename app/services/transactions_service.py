@@ -608,6 +608,7 @@ def import_transactions(file_storage):
 def export_transactions(period):
     from io import BytesIO
     from openpyxl import Workbook
+    from app.models import InvestmentAccount, InvestmentRow, InvestmentInstrumentMapping
 
     try:
         from app.services.reports_service import get_period_dates
@@ -728,6 +729,53 @@ def export_transactions(period):
 
     for a in accounts:
         accounts_ws.append([a.get_export_path(), a.opening_balance or 0.0, a.account_type, a.code or '', a.description or ''])
+
+    # Investments export (round-trip)
+    investments_index_ws = wb.create_sheet('Investments Index')
+    investments_index_ws.append(['Category', 'Account Name', 'Sheet Name'])
+
+    investments_mappings_ws = wb.create_sheet('Investments Mappings')
+    investments_mappings_ws.append(['Category', 'Instrument', 'Mapped Asset'])
+
+    # Build unique, Excel-safe sheet names (<= 31 chars)
+    def _sheet_safe(name, used):
+        base = ''.join((c if c not in ['[', ']', '*', '?', '/', '\\\\', ':'] else ' ') for c in (name or '')).strip()
+        base = base or 'Investments'
+        base = base[:31]
+        candidate = base
+        i = 2
+        while candidate in used or candidate in wb.sheetnames:
+            suffix = f" {i}"
+            candidate = (base[: max(0, 31 - len(suffix))] + suffix).strip()
+            i += 1
+        used.add(candidate)
+        return candidate
+
+    used_sheet_names = set()
+    inv_accounts = InvestmentAccount.query.order_by(InvestmentAccount.category.asc(), InvestmentAccount.name.asc()).all()
+    for inv_acc in inv_accounts:
+        sheet_name = _sheet_safe(f"Inv {inv_acc.category} {inv_acc.name}", used_sheet_names)
+        investments_index_ws.append([inv_acc.category, inv_acc.name, sheet_name])
+
+        ws_inv = wb.create_sheet(sheet_name)
+        headers = inv_acc.headers or []
+        ws_inv.append(headers)
+        rows = (
+            InvestmentRow.query.filter_by(account_id=inv_acc.id)
+            .order_by(InvestmentRow.sort_index.asc(), InvestmentRow.id.asc())
+            .all()
+        )
+        for r in rows:
+            data = r.data or {}
+            ws_inv.append([data.get(h, '') for h in headers])
+
+    inv_maps = InvestmentInstrumentMapping.query.order_by(
+        InvestmentInstrumentMapping.category.asc(),
+        InvestmentInstrumentMapping.instrument.asc()
+    ).all()
+    for m in inv_maps:
+        asset = Account.query.get(m.mapping_account_id) if m.mapping_account_id else None
+        investments_mappings_ws.append([m.category, m.instrument, asset.get_export_path() if asset else ''])
 
     for je in q.all():
         debit_lines = [l for l in je.transaction_lines if (l.line_type or '').upper() == 'DEBIT']

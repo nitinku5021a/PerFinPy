@@ -19,7 +19,10 @@ from app.models import (
     TradeSetup,
     TradeJournalEntry,
     FinancialFreedomClockSnapshot,
-    DashboardPanelCache
+    DashboardPanelCache,
+    InvestmentAccount,
+    InvestmentRow,
+    InvestmentInstrumentMapping
 )
 import json
 from app.services import snapshots_service
@@ -1027,6 +1030,81 @@ def import_transactions_from_excel(file_stream):
                     db.session.add(cache)
                 else:
                     cache.payload_json = json.dumps(payload)
+
+        # Import Investments (round-trip), if present
+        if 'Investments Index' in workbook.sheetnames:
+            try:
+                # Clear existing investments before re-import to keep a clean round-trip.
+                InvestmentInstrumentMapping.query.delete()
+                InvestmentAccount.query.delete()
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                results['warnings'].append("Failed to clear existing Investments tables before import; proceeding.")
+
+            idx_ws = workbook['Investments Index']
+            for row_idx, row in enumerate(idx_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    category = str(row[0] or '').strip()
+                    name = str(row[1] or '').strip()
+                    sheet_name = str(row[2] or '').strip()
+                    if not category or not name or not sheet_name:
+                        raise ValueError("Category, Account Name, and Sheet Name are required.")
+                    if sheet_name not in workbook.sheetnames:
+                        raise ValueError(f"Sheet '{sheet_name}' not found.")
+
+                    inv_ws = workbook[sheet_name]
+                    header = next(inv_ws.iter_rows(min_row=1, max_row=1, values_only=True), None) or []
+                    headers = [str(h).strip() for h in header if h is not None and str(h).strip()]
+                    if not headers:
+                        raise ValueError("No headers found in investment sheet.")
+
+                    acc = InvestmentAccount(category=category, name=name)
+                    acc.headers = headers
+                    db.session.add(acc)
+                    db.session.flush()
+
+                    sort_index = 0
+                    for r in inv_ws.iter_rows(min_row=2, values_only=True):
+                        if not r or not any(cell not in (None, '') for cell in r):
+                            continue
+                        row_dict = {}
+                        for i, h in enumerate(headers):
+                            row_dict[h] = '' if i >= len(r) or r[i] is None else str(r[i])
+                        inv_row = InvestmentRow(account_id=acc.id, sort_index=sort_index)
+                        inv_row.data = row_dict
+                        db.session.add(inv_row)
+                        sort_index += 1
+                except Exception as e:
+                    results['warnings'].append(f"Investments Index row {row_idx}: {str(e)}")
+
+        if 'Investments Mappings' in workbook.sheetnames:
+            map_ws = workbook['Investments Mappings']
+            for row_idx, row in enumerate(map_ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or not any(row):
+                    continue
+                try:
+                    category = str(row[0] or '').strip()
+                    instrument = str(row[1] or '').strip()
+                    mapped_asset = str(row[2] or '').strip() if len(row) > 2 and row[2] is not None else ''
+                    if not category or not instrument:
+                        raise ValueError("Category and Instrument are required.")
+
+                    mapping_account_id = None
+                    if mapped_asset:
+                        asset_acc = parse_account_path(mapped_asset, 'Asset')
+                        mapping_account_id = asset_acc.id
+
+                    m = InvestmentInstrumentMapping(
+                        category=category,
+                        instrument=instrument,
+                        mapping_account_id=mapping_account_id
+                    )
+                    db.session.add(m)
+                except Exception as e:
+                    results['warnings'].append(f"Investments Mappings row {row_idx}: {str(e)}")
 
         db.session.commit()
         
