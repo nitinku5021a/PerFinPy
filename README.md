@@ -3,6 +3,11 @@
 PerFinPy is a personal finance app with a Flask JSON API backend and a SvelteKit frontend.
 It uses double-entry bookkeeping, snapshot tables for fast reporting, monthly budget allocation, and recurring reminders.
 
+## Prerequisites
+
+- Python 3.10+ (Windows/macOS/Linux)
+- Node.js 18+ (recommended: current LTS)
+
 ## Tech Stack
 
 - Backend: Flask, Flask-SQLAlchemy, SQLAlchemy, openpyxl
@@ -70,84 +75,9 @@ PerFinPy/
 `-- README.md
 ```
 
-## Key API Routes
-
-### Core
-- `GET /` -> index payload
-- `GET /dashboard` -> dashboard summary
-
-### Transactions and Accounts
-- `GET /transactions`
-- `POST /transactions/new`
-- `GET /transactions/<id>`
-- `POST /transactions/<id>/edit`
-- `GET /transactions/accounts`
-- `POST /transactions/accounts/new`
-- `POST /transactions/accounts/<id>/edit`
-- `POST /transactions/import`
-- `GET /transactions/export`
-
-### Reports
-- `GET /reports/networth`
-- `GET /reports/networth-matrix`
-- `GET /reports/income-matrix`
-- `GET /reports/income-statement`
-- `GET /reports/trial-balance`
-- `GET /reports/networth-growth`
-- `GET /reports/net-savings-series`
-- `GET /reports/networth-monthly`
-- `GET /reports/expense-income-asset`
-- `GET /reports/investment-flows`
-- `GET /reports/cashflow-sankey`
-- `GET /reports/accounts/<account_id>/entries`
-
-### Monthly Budget
-- `GET /budget/monthly`
-- `POST /budget/monthly/settings`
-- `POST /budget/monthly/assign-owner`
-
-### Reminders
-- `GET /reminders/monthly`
-- `POST /reminders/tasks`
-- `POST /reminders/occurrences/<occurrence_id>/done`
-- `DELETE /reminders/occurrences/<occurrence_id>`
-- `DELETE /reminders/tasks/<task_id>`
-
-## Frontend Pages
-
-Navigation currently includes:
-- Dashboard
-- Accounts
-- Ledger
-- Net Worth
-- Investments
-- Monthly Budget
-- Report
-- Wealth Report
-- Income Statement
-- Trial Balance
-- Journal Entries
-- Transactions
-- Reminders
-
-## Database Models (High Level)
-
-- `accounts`
-- `journal_entries`
-- `journal_entry_edit_logs`
-- `transaction_lines`
-- `daily_account_balance`
-- `monthly_networth`
-- `monthly_pnl`
-- `monthly_budget`
-- `budget_line_assignment`
-- `budget_entry_assignment`
-- `reminder_task`
-- `reminder_occurrence`
-
 ## Environment Variables
 
-See `.env.example`.
+Copy `.env.example` to `.env` and adjust as needed.
 
 Required:
 - `DATABASE_URL`
@@ -169,20 +99,19 @@ Optional:
 - `PERFINPY_EXPORT_RETRIES`
 - `PERFINPY_EXPORT_RETRY_DELAY`
 
-## Local Development
+## Quickstart (Local Dev)
 
-### Option 1: One-command (Windows)
+Windows (recommended):
 
 ```bat
 dev.cmd
 ```
 
-This will:
-- create virtual environment if needed
-- install backend/frontend dependencies
-- start Flask backend (`run.py`) and Svelte dev server
+This bootstraps dependencies and starts:
+- Backend: `http://127.0.0.1:5000`
+- Frontend: `http://127.0.0.1:5173`
 
-### Option 2: Manual
+Manual (any OS):
 
 1. Create venv:
 ```bash
@@ -207,7 +136,7 @@ npm install
 npm run dev
 ```
 
-## Production
+## Production-Style Run (Local)
 
 Use the OS-specific wrapper, or call `python prod.py` directly.
 
@@ -230,6 +159,14 @@ Behavior:
 - starts backend with `waitress` on Windows, `gunicorn` on non-Windows
 - starts SvelteKit Node server (`node build`)
 - auto-selects alternative backend/frontend ports if requested ports are in use
+
+## Cleaning Generated Files
+
+Keeps your local `accounting.db` intact:
+
+```bat
+clean.cmd
+```
 
 ### Ubuntu / Oracle Cloud systemd
 
