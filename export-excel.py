@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 DEFAULT_BACKUP_DIR = Path.home() / "PerFinPyBackups"
+STALE_LOCAL_DAYS = 3
 
 
 def load_dotenv(path):
@@ -52,9 +53,21 @@ def parse_args():
 def export_local():
     from app import create_app
     from app.services import transactions_service
+    from app import db
+    from app.models import TransactionLine
+    from datetime import date
 
     app = create_app()
     with app.app_context():
+        latest = db.session.query(db.func.max(TransactionLine.date)).scalar()
+        if latest:
+            age = (date.today() - latest).days
+            if age >= STALE_LOCAL_DAYS and not os.environ.get("PERFINPY_EXPORT_URL"):
+                print(
+                    f"WARNING: Local DB latest transaction date is {latest} "
+                    f"({age} days old). If you expected remote updates, set PERFINPY_EXPORT_URL in .env.",
+                    flush=True,
+                )
         stream = transactions_service.export_transactions("all")
         return stream.read()
 

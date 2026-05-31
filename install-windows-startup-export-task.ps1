@@ -16,6 +16,17 @@ if (-not (Test-Path $batPath)) {
   throw "startup-export-excel.bat not found at $batPath"
 }
 
+$envFile = Join-Path $root ".env"
+if (-not $ExportUrl -and (Test-Path $envFile)) {
+  $line = Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*PERFINPY_EXPORT_URL\s*=' } | Select-Object -First 1
+  if ($line) {
+    $value = ($line -split '=', 2)[1].Trim().Trim('"').Trim("'")
+    if ($value) {
+      $ExportUrl = $value
+    }
+  }
+}
+
 $envParts = @(
   "set `"PERFINPY_BACKUP_DIR=$BackupDir`"",
   "set `"PERFINPY_BACKUP_KEEP_LATEST=$KeepLatest`""

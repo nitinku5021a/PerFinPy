@@ -111,6 +111,12 @@ This bootstraps dependencies and starts:
 - Backend: `http://127.0.0.1:5000`
 - Frontend: `http://127.0.0.1:5173`
 
+### One-click (Windows)
+
+- Double-click `install.cmd` (defaults to dev mode).
+- If you want the script to attempt installing Python/Node.js automatically (via `winget`):
+  - Run `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -InstallPrereqs`
+
 Manual (any OS):
 
 1. Create venv:
