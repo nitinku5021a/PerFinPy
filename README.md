@@ -169,6 +169,23 @@ Optional:
 - `PERFINPY_EXPORT_RETRIES`
 - `PERFINPY_EXPORT_RETRY_DELAY`
 
+## First-time setup (interactive)
+
+This repo uses a local `.env` file for configuration (it is gitignored).
+
+Windows:
+
+```bat
+setup.cmd
+```
+
+Linux/macOS:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
 ## Local Development
 
 ### Option 1: One-command (Windows)
