@@ -1,3 +1,9 @@
+#
+# Python version guard:
+# Fail fast if someone tries to install with a non-3.11 interpreter.
+# (This "package" doesn't exist, but it's only required when python_version != 3.11.)
+perfinpy-python311-only==0; python_version != "3.11"
+
 Flask==2.2.5
 Flask-SQLAlchemy==2.5.1
 SQLAlchemy==1.4.48
